@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Match Race Stats</title>
+<meta name="description" content="Toutes les stats de match race depuis 2011 : victoires, défaites, jaune vs bleu, face-à-face.">
+<meta property="og:title" content="Match Race Stats">
+<meta property="og:description" content="46 000+ matchs, 1 600 skippers : victoires, jaune vs bleu, face-à-face.">
+<meta name="theme-color" content="#050a18">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 3 L16 27 L5 27 Z' fill='%232f6bff'/><path d='M18 7 L18 27 L28 27 Z' fill='%23ffc61a'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="vendor/d3-array.min.js" defer></script><script src="vendor/d3-geo.min.js" defer></script><script src="vendor/topojson-client.min.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;
+  --bg:#050a18;--bg2:#0a1430;--glass:rgba(255,255,255,.045);--glass2:rgba(255,255,255,.08);--line:rgba(255,255,255,.09);
+  --ink:#eef2ff;--mut:#8b97b8;--yel:#ffc61a;--yel2:#ffde6b;--blu:#2f6bff;--blu2:#6f9bff;--win:#3ddc84;--loss:#ff5c6c;
+  --disp:"Anton",Impact,"Arial Narrow Bold",sans-serif;--body:"Inter",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);overflow-x:hidden}
+#fx{position:fixed;inset:0;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:1840px;margin:0 auto;padding:0 28px 60px}
+/* les titres d'events longs passent à la ligne au lieu de forcer un scroll horizontal */
+td.l a[target=_blank]{white-space:normal;display:inline-block;min-width:130px;max-width:420px;line-height:1.3}
+@media (max-width:1400px){.wrap{padding:0 16px 60px}.grid{gap:14px}.card{padding:16px 14px}}
+.grid th,.grid td{padding:8px 7px}
+a{color:var(--blu2);text-decoration:none}a:hover{color:#fff}
+
+/* header */
+header{display:flex;align-items:center;gap:20px;padding:18px 0;flex-wrap:wrap}
+.logo{font:400 30px/0.95 var(--disp);letter-spacing:.5px;text-transform:uppercase;color:#fff;display:flex;gap:10px;align-items:center}
+.logo svg{width:34px;height:34px;filter:drop-shadow(0 0 10px rgba(255,198,26,.45))}
+.logo em{font-style:normal;background:linear-gradient(90deg,var(--blu2),var(--yel));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav{display:flex;gap:4px;background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:4px;backdrop-filter:blur(10px)}
+nav a{color:var(--mut);padding:7px 15px;border-radius:999px;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+nav a.on{background:linear-gradient(90deg,var(--blu),#5b4dff);color:#fff;box-shadow:0 0 20px rgba(47,107,255,.45)}
+nav a:hover{color:#fff}
+.tools{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,input{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(10,20,48,.75);color:var(--ink);outline:none}
+select:focus,input:focus{border-color:var(--blu2);box-shadow:0 0 0 3px rgba(47,107,255,.25)}
+.btn{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-radius:10px;border:0;cursor:pointer;color:#1b1400;
+  background:linear-gradient(90deg,var(--yel),var(--yel2));box-shadow:0 0 18px rgba(255,198,26,.35)}
+.btn.ghost{background:var(--glass2);color:var(--ink);box-shadow:none;border:1px solid var(--line)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#111d42;border:1px solid var(--line);padding:10px 18px;border-radius:12px;z-index:20;transition:.3s;font-weight:600}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+/* hero */
+.hero{padding:34px 0 26px}
+.hero h1{font:400 clamp(44px,8vw,104px)/.9 var(--disp);text-transform:uppercase;margin:0;letter-spacing:.5px}
+.hero h1 .y{color:var(--yel);text-shadow:0 0 30px rgba(255,198,26,.45)}
+.hero h1 .b{color:var(--blu2);text-shadow:0 0 30px rgba(47,107,255,.55)}
+.kicker{font:700 12px var(--body);letter-spacing:3px;text-transform:uppercase;color:var(--mut);margin-bottom:10px}
+.hero p{color:var(--mut);max-width:680px;font-size:15px;margin:14px 0 0}
+.counters{display:flex;gap:34px;margin-top:22px;flex-wrap:wrap}
+.counters div b{display:block;font:400 40px/1 var(--disp);color:#fff}
+.counters div span{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mut)}
+
+/* cards */
+.card{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-bottom:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.card h2{font:400 22px var(--disp);text-transform:uppercase;letter-spacing:.6px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+.card h2 small{font:500 12px var(--body);color:var(--mut);text-transform:none;letter-spacing:0}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px}
+.tile{background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:14px 16px;position:relative;overflow:hidden}
+.tile .v{font:400 34px/1.05 var(--disp);letter-spacing:.5px}
+.tile .l{color:var(--mut);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px}
+.tile.y{border-color:rgba(255,198,26,.35);background:linear-gradient(140deg,rgba(255,198,26,.16),rgba(255,198,26,.02))}
+.tile.y .v{color:var(--yel)}
+.tile.b{border-color:rgba(47,107,255,.4);background:linear-gradient(140deg,rgba(47,107,255,.2),rgba(47,107,255,.02))}
+.tile.b .v{color:var(--blu2)}
+
+/* tables */
+.scroll{max-height:640px;overflow:auto;margin:0 -8px;padding:0 8px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:9px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font:600 10.5px var(--body);letter-spacing:1.3px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none;position:sticky;top:0;background:#0b1430;z-index:1}
+th[data-s=a]::after{content:" ▲";color:var(--yel)}th[data-s=d]::after{content:" ▼";color:var(--yel)}
+th:first-child,td:first-child,.l{text-align:left}
+tbody tr{transition:background .15s}
+tbody tr:hover td{background:rgba(255,255,255,.035)}
+.rank{font:400 18px var(--disp);color:var(--mut);width:36px}
+tr:nth-child(1) .rank{color:var(--yel)}tr:nth-child(2) .rank{color:#d7def0}tr:nth-child(3) .rank{color:#e39b5b}
+.nm{font-weight:600;color:#fff}.nm:hover{color:var(--yel)}
+.cc{display:inline-block;font:700 9.5px var(--body);letter-spacing:1px;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:1px 4px;margin-left:7px;vertical-align:1px}
+.W{color:var(--win);font-weight:700}.L{color:var(--loss);font-weight:700}
+.mut{color:var(--mut)}
+.big{font:400 17px var(--disp);letter-spacing:.4px}
+.meter{display:inline-block;width:76px;height:6px;border-radius:3px;background:rgba(255,255,255,.08);vertical-align:middle;margin-left:8px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blu),var(--yel))}
+.duel{display:inline-flex;width:110px;height:8px;border-radius:4px;overflow:hidden;vertical-align:middle;background:rgba(255,255,255,.06)}
+.duel i{display:block;height:100%}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.chip.yellow{color:var(--yel)}.chip.blue{color:var(--blu2)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--glass2);color:var(--mut);font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.note{font-size:12px;color:var(--mut);margin-top:10px}
+
+/* skipper hero */
+.sk-hero{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;padding:30px 0 22px}
+.sk-hero h1{font:400 clamp(40px,7vw,88px)/.92 var(--disp);text-transform:uppercase;margin:0}
+.sk-hero .meta{color:var(--mut);font-weight:600;letter-spacing:2px;text-transform:uppercase;font-size:12px}
+.donut-wrap{margin-left:auto;display:flex;align-items:center;gap:22px}
+.donut .seg{transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1)}
+.donut .ctr{font-family:var(--disp);fill:#fff}
+.donut .sub{font:700 5.5px var(--body);letter-spacing:.8px;fill:var(--mut);text-transform:uppercase}
+.dleg{display:flex;flex-direction:column;gap:10px;font-size:12px}
+.dleg div{display:flex;align-items:center;gap:9px}
+.dleg i{width:12px;height:12px;border-radius:4px;flex:none}
+.dleg b{font:400 22px/1 var(--disp);min-width:58px}
+.dleg span{color:var(--mut);letter-spacing:1px;text-transform:uppercase;font-size:10.5px}
+.gauge{margin-left:auto;min-width:300px;flex:0 1 420px}
+.gauge .t{display:flex;justify-content:space-between;font:400 26px var(--disp)}
+.gauge .t .y{color:var(--yel)}.gauge .t .b{color:var(--blu2)}
+.gauge .track{height:14px;border-radius:7px;display:flex;overflow:hidden;margin:6px 0;box-shadow:0 0 24px rgba(47,107,255,.25)}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut)}
+
+/* versus */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center;padding:30px 0 10px}
+.vs .side{padding:22px;border-radius:20px;border:1px solid var(--line);background:var(--glass);min-height:150px;display:flex;flex-direction:column;justify-content:center}
+.vs .side.a{box-shadow:inset 0 0 60px rgba(47,107,255,.18);border-color:rgba(47,107,255,.4)}
+.vs .side.bb{box-shadow:inset 0 0 60px rgba(255,198,26,.14);border-color:rgba(255,198,26,.4);text-align:right}
+.vs .side .n{font:400 clamp(26px,4vw,46px)/1 var(--disp);text-transform:uppercase;margin-top:8px}
+.vs .score{font:400 clamp(56px,9vw,110px)/1 var(--disp);text-align:center;text-shadow:0 0 30px rgba(255,255,255,.25)}
+.vs .score small{display:block;font:600 11px var(--body);letter-spacing:3px;color:var(--mut);margin-top:6px}
+.search{position:relative}
+.search input{width:100%}
+.sugg{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#0d1838;border:1px solid var(--line);border-radius:12px;z-index:10;max-height:320px;overflow:auto;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.sugg div{padding:9px 12px;cursor:pointer;text-align:left}.sugg div:hover{background:rgba(255,255,255,.06)}
+
+/* split global */
+.split{display:flex;height:84px;border-radius:18px;overflow:hidden;margin-bottom:18px;border:1px solid var(--line)}
+.split div{display:flex;flex-direction:column;justify-content:center;padding:0 22px;font:400 44px/1 var(--disp)}
+.split div span{font:700 11px var(--body);letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-top:4px}
+.split .sy{background:linear-gradient(90deg,#c79500,var(--yel));color:#1b1400}
+.split .sb{background:linear-gradient(90deg,var(--blu),#1440b8);color:#fff;text-align:right;align-items:flex-end}
+svg text{font:11px var(--body);fill:var(--mut)}
+.legend{font-size:12px;color:var(--mut);display:flex;gap:16px;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.fade{animation:fade .45s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.loading{padding:120px 0;text-align:center;font:400 28px var(--disp);letter-spacing:2px;color:var(--mut);text-transform:uppercase}
+footer{color:var(--mut);font-size:12px;text-align:center;padding-top:20px}
+@media (max-width:720px){
+  .wrap{padding:0 16px 40px}.grid{grid-template-columns:1fr}.tools{margin-left:0;width:100%}
+  nav{overflow-x:auto;max-width:100%}nav a{padding:7px 11px}
+  .vs{grid-template-columns:1fr}.vs .side.bb{text-align:left}.gauge{min-width:0;flex-basis:100%}.donut-wrap{margin-left:0}
+  .hide-m{display:none}.split div{font-size:32px;padding:0 14px}
+}
+@media (prefers-reduced-motion:reduce){.fade{animation:none}}
+.flg{width:20px;height:14px;object-fit:cover;margin-left:7px;vertical-align:-2px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+.flg.big{width:54px;height:38px;margin:0;vertical-align:middle}
+.gr{display:inline-block;font:700 10px var(--body);letter-spacing:1px;padding:2px 6px;border:1px solid var(--line);color:var(--mut);min-width:26px;text-align:center}
+.gr.gW{color:#1b1400;background:linear-gradient(90deg,var(--yel),var(--yel2));border-color:transparent;box-shadow:0 0 10px rgba(255,198,26,.4)}
+.gr.g1{color:#fff;background:var(--blu);border-color:transparent}
+.gr.g2{color:var(--blu2);border-color:var(--blu2)}
+.avatar{width:92px;height:92px;display:flex;align-items:center;justify-content:center;font:400 40px var(--disp);color:#fff;position:relative;
+  background:linear-gradient(135deg,var(--blu),#5b4dff 55%,var(--yel));box-shadow:0 0 30px rgba(47,107,255,.45);flex:none}
+.avatar .flg{position:absolute;right:-8px;bottom:-6px;width:34px;height:24px;margin:0;z-index:2}
+.avatar img.ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.avatar.photo{width:128px;height:160px;background:#0b1430}
+.pod .avatar.sm.photo{width:104px;height:130px}.pod.p1 .avatar.sm.photo{width:128px;height:160px}
+.avatar.xs.photo{width:44px;height:44px}
+.rgrid{display:grid;grid-template-columns:52px repeat(12,1fr);gap:3px;font-variant-numeric:tabular-nums;margin-top:14px}
+.rgrid div{font-size:11px;text-align:center;padding:5px 0}
+.rgrid .hd{color:var(--mut);font-weight:700;letter-spacing:1px;font-size:10px}
+.rgrid .yr{font:400 15px var(--disp);color:var(--mut);text-align:left}
+.rgrid .c{font-weight:700}
+.wsrank{display:inline-flex;gap:10px;align-items:center;margin-top:10px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+.wsrank b{font:400 22px var(--disp);color:var(--yel)}
+#map{width:100%;height:auto;display:block}
+#map path.c{stroke:rgba(140,170,255,.35);stroke-width:.5;transition:fill .3s}
+#map path.c.has{cursor:pointer}#map path.c.has:hover{stroke:#fff;stroke-width:1.2}
+#map .sph{fill:rgba(47,107,255,.035);stroke:rgba(140,170,255,.18)}
+#map .grat{fill:none;stroke:rgba(255,255,255,.04)}
+#map circle.dotc{stroke:#fff;stroke-width:.6;cursor:pointer}
+.tip{position:fixed;pointer-events:none;background:#0d1838;border:1px solid var(--line);padding:8px 12px;font-size:12px;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
+.tip b{font:400 18px var(--disp);display:block}
+.scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mut);margin-top:8px}
+.scale i{display:block;width:220px;height:8px;background:linear-gradient(90deg,#14254f,#2f6bff,#8a7dff,#ffc61a)}
+/* leaderboard */
+.strip{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;padding:26px 0 18px}
+.strip .counters{margin-top:0}
+.crit{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:26px}
+.podium{display:grid;grid-template-columns:1fr 1.12fr 1fr;gap:16px;align-items:end;margin-bottom:18px}
+.pod{display:flex;flex-direction:column;align-items:center;text-align:center;color:var(--ink);background:var(--glass);border:1px solid var(--line);
+  padding:22px 16px 0;backdrop-filter:blur(14px);position:relative;transition:transform .2s}
+.pod:hover{transform:translateY(-4px);color:var(--ink)}
+.pod .medal{position:absolute;top:-1px;left:-1px;font:400 30px/1 var(--disp);padding:8px 14px;color:#1b1400}
+.pod.p1{border-color:rgba(255,198,26,.6);box-shadow:0 0 50px rgba(255,198,26,.18),inset 0 0 60px rgba(255,198,26,.08)}
+.pod.p1 .medal{background:linear-gradient(135deg,#ffe27a,#ffc61a)}
+.pod.p2 .medal{background:linear-gradient(135deg,#f2f5fb,#b9c2d6)}
+.pod.p3 .medal{background:linear-gradient(135deg,#f0b07a,#c7743a)}
+.pod .avatar.sm{width:76px;height:76px;font-size:32px}
+.pod.p1 .avatar.sm{width:96px;height:96px;font-size:40px}
+.pod .pn{font:400 26px/1.05 var(--disp);text-transform:uppercase;margin-top:16px}
+.pod.p1 .pn{font-size:32px}
+.pod .pc{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);margin-top:4px}
+.pod .pv{font:400 46px/1 var(--disp);margin-top:12px;color:#fff}
+.pod.p1 .pv{font-size:60px;color:var(--yel);text-shadow:0 0 28px rgba(255,198,26,.45)}
+.pod .ps{font-size:12px;color:var(--mut);margin-top:4px}
+.pod .pd{display:flex;align-items:center;gap:10px;margin:14px 0 18px}
+.pod .pdl{display:flex;flex-direction:column;font-size:11px;font-weight:600;text-align:left}
+.pod .step{align-self:stretch;margin:0 -16px;height:26px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border-top:1px solid var(--line)}
+.pod.p1 .step{height:62px;background:linear-gradient(180deg,rgba(255,198,26,.22),rgba(255,198,26,.03))}
+.pod.p2 .step{height:40px}
+.board{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.brow{display:grid;grid-template-columns:56px 44px minmax(180px,1.4fr) 2fr 110px 44px;gap:14px;align-items:center;padding:10px 16px;
+  background:var(--glass);border:1px solid var(--line);color:var(--ink);transition:background .15s,transform .15s}
+.brow:hover{background:var(--glass2);transform:translateX(4px);color:var(--ink)}
+.brow .bn{font:400 30px/1 var(--disp);color:var(--mut)}
+.brow .bname b{font-weight:700;font-size:15px}
+.brow .bname small{display:block;color:var(--mut);font-size:11.5px}
+.brow .bbar{height:10px;background:rgba(255,255,255,.06);overflow:hidden}
+.brow .bbar i{display:block;height:100%;background:linear-gradient(90deg,var(--blu),#8a7dff,var(--yel))}
+.brow .bv{font:400 28px/1 var(--disp);text-align:right}
+.avatar.xs{width:44px;height:44px;font-size:18px;box-shadow:none}
+@media (max-width:720px){
+  .podium{grid-template-columns:1fr}.pod.p1{order:-1}
+  .brow{grid-template-columns:40px 1fr 80px;}.brow .avatar,.brow .bbar{display:none}
+}
+.mrow{display:grid;grid-template-columns:150px 1fr 64px 120px;gap:10px;align-items:center;margin-bottom:10px;font-size:13px}
+.mbar{position:relative;height:14px;background:rgba(255,255,255,.06)}
+.mbar i{display:block;height:100%;background:linear-gradient(90deg,var(--blu),#8a7dff,var(--yel))}
+.mbar em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;box-shadow:0 0 6px #fff}
+.mrow b{font:400 20px var(--disp);text-align:right}
+.verdict{border-left:4px solid;padding:14px 18px;background:rgba(255,255,255,.03)}
+.verdict .vt{font:400 30px/1 var(--disp);text-transform:uppercase;margin-bottom:8px}
+.verdict p{margin:0;color:var(--ink);line-height:1.55}
+.dowg{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.dow{background:rgba(255,255,255,.03);border:1px solid var(--line);padding:10px 8px;text-align:center}
+.dow .dn{font:700 11px var(--body);letter-spacing:2px;text-transform:uppercase;color:var(--mut)}
+.dow .dv{font:400 26px/1.2 var(--disp)}
+.dow .dbar{position:relative;height:90px;background:rgba(255,255,255,.05);margin:6px auto;width:60%;display:flex;align-items:flex-end}
+.dow .dbar i{display:block;width:100%;background:linear-gradient(0deg,var(--blu),#8a7dff,var(--yel))}
+.dow .dbar em{position:absolute;left:-6px;right:-6px;height:2px;background:#fff;box-shadow:0 0 6px #fff}
+.dow .dc{font-size:11px;color:var(--mut)}
+.dow.best{border-color:rgba(255,198,26,.6);box-shadow:0 0 24px rgba(255,198,26,.15)}.dow.best .dv{color:var(--yel)}
+.dow.worst{border-color:rgba(255,92,108,.5)}.dow.worst .dv{color:var(--loss)}
+@media (max-width:720px){.dowg{grid-template-columns:repeat(4,1fr)}}
+.search{position:relative;z-index:40}.strip,.vs{position:relative;z-index:30}
+.sugg div{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:14px}
+.sugg div.on{background:rgba(47,107,255,.25)}
+.sugg .avatar.xs{width:32px;height:32px;font-size:13px;flex:none}
+.sugg b{font-weight:600}
+#ftog{display:none}
+@media (max-width:720px){
+  html,body{font-size:13.5px}
+  header{gap:10px;padding:12px 0}
+  .logo{font-size:22px}.logo svg{width:26px;height:26px}
+  #ftog{display:block;margin-left:auto;padding:8px 12px}
+  nav{order:3;width:100%;overflow-x:auto;white-space:nowrap;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+  nav a{font-size:12px;padding:8px 12px;flex:none}
+  .tools{display:none;order:4;width:100%}
+  .tools.open{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tools.open select,.tools.open .btn{width:100%;padding:10px}
+  .strip{padding:14px 0 10px;gap:12px}.strip>div:last-child{width:100%!important}
+  .counters{gap:18px}.counters div b{font-size:26px}
+  .crit{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none}.crit .btn{flex:none}
+  .podium{grid-template-columns:1fr 1.15fr 1fr;gap:6px}.pod.p1{order:0}
+  .pod{padding:12px 4px 0}.pod .medal{font-size:18px;padding:4px 8px}
+  .pod .avatar.sm,.pod .avatar.sm.photo{width:56px;height:70px;font-size:22px}.pod.p1 .avatar.sm,.pod.p1 .avatar.sm.photo{width:68px;height:85px}
+  .pod .avatar .flg{width:22px;height:15px;right:-4px;bottom:-3px}
+  .pod .pn,.pod.p1 .pn{font-size:15px;margin-top:10px;word-break:break-word}.pod .pc,.pod .pd,.pod .ps{display:none}
+  .pod .pv{font-size:24px;margin:6px 0 8px}.pod.p1 .pv{font-size:30px}
+  .pod .step{height:12px;margin:0 -4px}.pod.p1 .step{height:28px}.pod.p2 .step{height:18px}
+  .brow{grid-template-columns:30px 36px 1fr auto;gap:10px;padding:8px 10px}
+  .brow .avatar{display:flex}.brow .avatar.xs{width:36px;height:36px;font-size:14px}.brow .bbar{display:none}
+  .brow .bn{font-size:22px}.brow .bv{font-size:22px}.brow .bname b{font-size:14px}
+  .sk-hero{padding:16px 0 12px;gap:14px}.sk-hero h1{font-size:34px}
+  .avatar.photo{width:88px;height:110px}.avatar{width:72px;height:72px;font-size:30px}
+  .donut-wrap{gap:12px}.donut-wrap svg.donut{width:130px;height:130px}.dleg b{font-size:18px;min-width:44px}
+  .tiles{grid-template-columns:repeat(2,1fr);gap:8px}.tile{padding:10px 12px}.tile .v{font-size:26px}
+  .card{padding:14px 12px}.card h2{font-size:19px;flex-wrap:wrap}
+  .mrow{grid-template-columns:96px 1fr 50px;gap:8px;font-size:12px}.mrow small{grid-column:2/4;margin-top:-6px}.mrow b{font-size:17px}
+  .rgrid{grid-template-columns:34px repeat(12,1fr);gap:2px}.rgrid div{font-size:8.5px;padding:4px 0}.rgrid .yr{font-size:11px}
+  .dowg{grid-template-columns:repeat(7,1fr);gap:4px}.dow{padding:6px 2px}.dow .dv{font-size:15px}.dow .dbar{height:60px}.dow .dn{font-size:9px;letter-spacing:0}.dow .dc{font-size:9px}
+  .grid{grid-template-columns:1fr!important}
+  th,td{padding:8px 6px}
+  .vs{padding:16px 0 6px}.vs .side{min-height:0;padding:14px}
+  .split{height:64px}.split div{font-size:26px}
+  .hero{padding:18px 0 14px}.hero h1{font-size:40px}
+  .wsrank{font-size:11px}.wsrank b{font-size:18px}
+  footer{font-size:11px;padding:16px 8px}
+  .card .bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.card .bar .btn,.card .bar select,.card .bar input{flex:none}
+}
+/* angles vifs partout (sauf pastilles rondes) */
+*,*::before,*::after{border-radius:0!important}
+.chip::before{border-radius:50%!important}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div class="wrap">
+<header>
+  <a class="logo" href="#/"><svg viewBox="0 0 32 32"><path d="M15 2 L15 27 L3 27 Z" fill="#2f6bff"/><path d="M17.5 6 L17.5 27 L29 27 Z" fill="#ffc61a"/><path d="M2 29 H30" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></svg><span>Match Race <em>Stats</em></span></a>
+  <nav><a href="#/" data-r="">Classement</a><a href="#/h2h" data-r="h2h">Face-à-face</a><a href="#/colours" data-r="colours">Jaune vs Bleu</a><a href="#/countries" data-r="countries">Pays</a><a href="#/events" data-r="events">Events</a></nav>
+  <button class="btn ghost" id="ftog" aria-expanded="false">Filtres</button>
+  <div class="tools" id="tools">
+    <select id="y0" title="De"></select><select id="y1" title="À"></select>
+    <select id="women"><option value="-1">Open + Women</option><option value="0">Open</option><option value="1">Women</option></select>
+    <select id="youth"><option value="-1">Tous âges</option><option value="0">Hors youth</option><option value="1">Youth</option></select>
+    <select id="grade" title="Grade World Sailing"><option value="-1">Tous grades</option><option value="0">Grade W</option><option value="1">W + G1</option><option value="2">W → G2</option><option value="3">W → G3</option><option value="5">Gradés WS</option></select>
+    <button class="btn" id="share">Partager</button>
+  </div>
+</header>
+<main id="main"><div class="loading">Chargement…</div></main>
+<footer>Données : <a href="https://www.matchracingresults.com" target="_blank" rel="noopener">matchracingresults.com</a> · jaune = entrée tribord, bleu = entrée bâbord (RRS Annexe C) · photos skippers : World Match Racing Tour · classements : World Sailing · <span id="gen"></span></footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ===================== fond animé : halos + particules ===================== */
+(()=>{
+  const c=document.getElementById('fx'),x=c.getContext('2d'),R=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W,H,P=[],t=0,dpr=Math.min(devicePixelRatio||1,2);
+  const size=()=>{W=c.width=innerWidth*dpr;H=c.height=innerHeight*dpr;c.style.width=innerWidth+'px';c.style.height=innerHeight+'px';
+    const n=Math.round(Math.min(110,innerWidth*innerHeight/14000));
+    P=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,r:(Math.random()*1.8+.4)*dpr,
+      vx:(Math.random()-.5)*.18*dpr,vy:(-Math.random()*.25-.05)*dpr,y2:Math.random()<.5,ph:Math.random()*6.28}))};
+  size();addEventListener('resize',size);
+  const glow=(cx,cy,r,col)=>{const g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,W,H)};
+  const frame=()=>{
+    t+=R?0:.004;x.clearRect(0,0,W,H);
+    x.globalCompositeOperation='lighter';
+    glow(W*(.18+.06*Math.sin(t*1.3)),H*(.25+.08*Math.cos(t)),Math.max(W,H)*.55,'rgba(47,107,255,.20)');
+    glow(W*(.85+.05*Math.cos(t*1.1)),H*(.75+.07*Math.sin(t*.9)),Math.max(W,H)*.5,'rgba(255,198,26,.11)');
+    glow(W*(.55+.2*Math.sin(t*.6)),H*(.1+.05*Math.sin(t*1.7)),Math.max(W,H)*.3,'rgba(91,77,255,.10)');
+    for(const p of P){
+      if(!R){p.x+=p.vx;p.y+=p.vy;p.ph+=.02;if(p.y<-10){p.y=H+10;p.x=Math.random()*W}if(p.x<-10)p.x=W+10;if(p.x>W+10)p.x=-10}
+      const a=.35+.35*Math.sin(p.ph);
+      x.fillStyle=p.y2?`rgba(255,205,60,${a})`:`rgba(110,155,255,${a})`;
+      x.shadowBlur=12*dpr;x.shadowColor=p.y2?'rgba(255,198,26,.9)':'rgba(47,107,255,.9)';
+      x.beginPath();x.arc(p.x,p.y,p.r,0,6.283);x.fill();
+    }
+    x.shadowBlur=0;x.globalCompositeOperation='source-over';
+    if(!R)requestAnimationFrame(frame);
+  };frame();
+})();
+
+/* ===================== données ===================== */
+const $=s=>document.querySelector(s), M=$('#main');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=v=>v==null||isNaN(v)?'–':v.toFixed(1)+'%';
+const P100=(a,b)=>b?100*a/b:null;
+const STAGE={round_robin:'Round robin',quarter_final:'Quarts',semi_final:'Demies',final:'Finale',petit_final:'Petite finale',repechage:'Repêchage',placing:'Classement',other:'Autre'};
+let D, SK, EV, KEY2I;   // données brutes
+
+async function load(){
+  D=await fetch('data.json',{cache:'no-cache'}).then(r=>r.json());
+  SK=D.skippers.map(([key,name,country,ws],i)=>({i,key,name,country,ws}));
+  KEY2I=Object.fromEntries(SK.map(s=>[s.key,s.i]));
+  EV=D.events.map(([year,title,url,date,boat,women,youth,grade,venue,vc,wst],i)=>({i,year,title,url,date,boat,women,youth,grade,venue,vc,wst,g:grade==null?99:grade==='W'?0:+grade}));
+  // match -> objets
+  const DAY0=Date.UTC(2010,0,1),dstr=d=>new Date(DAY0+d*864e5).toISOString().slice(0,10),hm=t=>String(t/60|0).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+  D.M=D.matches.map(([e,p,s,w,k,st,day,fl,pr,sr,pen,tm])=>({e,p,s,w,k:D.kinds[k],st:D.stages[st],date:day?dstr(day):(EV[e].date||String(EV[e].year)),hd:day>0,t:tm>=0?hm(tm):'',fl,
+    pr:pr||(w===1?'1':w===2?'0':''),sr:sr||(w===2?'1':w===1?'0':''),pp:pen&1,ps:pen&2}));
+  D.matches=null;D.ranks=null;
+  D.M.forEach((m,i)=>m.ix=i);{let pe=-1,pk='';for(const m of D.M){if(m.e!==pe){pe=m.e;pk=''}const k=m.date+(m.t?'T'+m.t:'');m.sk=(m.t||k.slice(0,10)>pk.slice(0,10))?k:pk;pk=m.sk}}
+  const evd=e=>EV[e].date||EV[e].year+'-07-01';D.M.sort((a,b)=>evd(a.e).localeCompare(evd(b.e))||a.e-b.e||a.sk.localeCompare(b.sk)||a.ix-b.ix);
+  D.R=D.entries.map(([e,s,r])=>({e,s,r}));
+}
+
+/* ----- filtres (dans le hash, pour que le lien partagé garde tout) ----- */
+function parseHash(){
+  const [path,query]=location.hash.slice(1).split('?');
+  return {parts:(path||'/').split('/').filter(Boolean).map(decodeURIComponent),q:new URLSearchParams(query||'')};
+}
+function filt(){return{y0:+$('#y0').value,y1:+$('#y1').value,women:+$('#women').value,youth:+$('#youth').value,grade:+$('#grade').value}}
+function fq(){const f=filt(),o={};const ys=yearsAll();if(f.y0!==ys[0])o.y0=f.y0;if(f.y1!==ys[ys.length-1])o.y1=f.y1;if(f.women>=0)o.women=f.women;if(f.youth>=0)o.youth=f.youth;if(f.grade>=0)o.grade=f.grade;const s=new URLSearchParams(o).toString();return s?'?'+s:''}
+const yearsAll=()=>[...new Set(EV.map(e=>e.year))].sort();
+function evOK(e,f){const v=EV[e];return v.year>=f.y0&&v.year<=f.y1&&(f.women<0||v.women==f.women)&&(f.youth<0||v.youth==f.youth)&&(f.grade<0||v.g<=f.grade)}
+function matchesF(){const f=filt();return D.M.filter(m=>evOK(m.e,f))}
+const link=(path)=>'#'+path+fq();
+
+/* ----- agrégats ----- */
+function blank(){return{m:0,w:0,l:0,yw:0,yl:0,ym:0,bw:0,bl:0,bm:0,rw:0,rl:0,kw:0,kl:0,km:0,fw:0,fm:0,pen:0,ev:new Set(),y0:9999,y1:0,cur:0,lws:0,lls:0,prev:null}}
+function add(a,m,side){ // side: 'p' (bleu) | 's' (jaune)
+  const me=side==='p'?1:2, res=m.w===me?'W':(m.w===3-me?'L':(m.w===3?'D':'?')), yel=side==='s';
+  a.m++;a.ev.add(m.e);const y=EV[m.e].year;a.y0=Math.min(a.y0,y);a.y1=Math.max(a.y1,y);
+  if(res==='W')a.w++;if(res==='L')a.l++;
+  if(yel){a.ym++;if(res==='W')a.yw++;if(res==='L')a.yl++}else{a.bm++;if(res==='W')a.bw++;if(res==='L')a.bl++}
+  if(m.k==='round_robin'){if(res==='W')a.rw++;if(res==='L')a.rl++}else{a.km++;if(res==='W')a.kw++;if(res==='L')a.kl++}
+  if(m.k==='final'){a.fm++;if(res==='W')a.fw++}
+  if(side==='p'?m.pp:m.ps)a.pen++;
+  if((res==='W'||res==='L')&&m.hd){const dk=m.e+'|'+m.date;if(a.dk!==dk){a.cur=0;a.dk=dk}if(res==='W'){a.cur=a.cur>0?a.cur+1:1;a.lws=Math.max(a.lws,a.cur)}else{a.cur=a.cur<0?a.cur-1:-1;a.lls=Math.max(a.lls,-a.cur)}}
+  return res;
+}
+function finalize(a){a.pct=P100(a.w,a.w+a.l);a.ypct=P100(a.yw,a.yw+a.yl);a.bpct=P100(a.bw,a.bw+a.bl);a.rpct=P100(a.rw,a.rw+a.rl);a.kpct=P100(a.kw,a.kw+a.kl);a.nev=a.ev.size;return a}
+function ranksF(){const f=filt(),t={};for(const r of D.R)if(evOK(r.e,f)){const o=t[r.s]??={ti:0,po:0};if(r.r===1)o.ti++;if(r.r<=3)o.po++}return t}
+
+/* ----- ui helpers ----- */
+const CN=c=>(D.countries[c]||[])[2]||c;
+const cc=(c,big)=>!c?'':(D.countries[c]&&D.countries[c][0])?`<img class="flg${big?' big':''}" src="flags/${c}.svg" alt="${c}" title="${esc(CN(c))}" loading="lazy">`:`<span class="cc" title="${esc(CN(c))}">${esc(c)}</span>`;
+const gb=g=>g==null?'<span class="mut">–</span>':`<span class="gr g${g}" title="Grade World Sailing">${g==='W'?'W':'G'+g}</span>`;
+const skl=i=>`<a class="nm" href="${link('/skipper/'+encodeURIComponent(SK[i].key))}">${esc(SK[i].name)}</a>${cc(SK[i].country)}`;
+const meter=v=>v==null?'':`<span class="meter"><i style="width:${Math.max(0,Math.min(100,v))}%"></i></span>`;
+const duel=(y,b)=>y==null||b==null?'':`<span class="duel" title="jaune ${pct(y)} · bleu ${pct(b)}"><i style="width:${50+(y-b)/2}%;background:linear-gradient(90deg,#b98a00,var(--yel))"></i><i style="flex:1;background:linear-gradient(90deg,var(--blu2),var(--blu))"></i></span>`;
+/* donut : victoires en bleu | victoires en jaune | défaites ; % victoires au centre */
+function donut(a,size=200,{label=true}={}){
+  const tot=a.bw+a.yw+a.l, r=40, C=2*Math.PI*r, sw=label?11:14;
+  if(!tot)return'';
+  const segs=[[a.bw,'url(#dgB)'],[a.yw,'url(#dgY)'],[a.l,'rgba(255,255,255,.13)']];
+  let off=0, gap=tot>1?1.2:0, out='';
+  for(const [v,c] of segs){if(!v)continue;const len=C*v/tot;
+    out+=`<circle class="seg" r="${r}" cx="50" cy="50" fill="none" stroke="${c}" stroke-width="${sw}" stroke-dasharray="${Math.max(len-gap,.1)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 50 50)"><title>${c.includes('B')?'victoires en bleu':c.includes('Y')?'victoires en jaune':'défaites'} : ${v}</title></circle>`;off+=len}
+  const p=100*a.w/(a.w+a.l||1);
+  return `<svg class="donut" viewBox="0 0 100 100" width="${size}" height="${size}" style="filter:drop-shadow(0 0 ${label?18:6}px rgba(47,107,255,.35))">
+    <defs><linearGradient id="dgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f9bff"/><stop offset="1" stop-color="#2f6bff"/></linearGradient>
+    <linearGradient id="dgY" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#ffc61a"/></linearGradient></defs>
+    <circle r="${r}" cx="50" cy="50" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="${sw}"/>${out}
+    ${label?`<text class="ctr" x="50" y="${p>=99.95?55:56}" text-anchor="middle" font-size="${p>=99.95?17:19}">${p.toFixed(1)}%</text><text class="sub" x="50" y="66" text-anchor="middle">victoires</text>`:''}</svg>`;
+}
+const delta=(y,b)=>y==null||b==null?'–':`<span style="color:${y>=b?'var(--yel)':'var(--blu2)'}">${y>=b?'+':''}${(y-b).toFixed(1)}</span>`;
+function alignHeads(){document.querySelectorAll('table').forEach(t=>{const r=t.tBodies[0]?.rows[0];if(!r)return;t.querySelectorAll('thead th').forEach((th,i)=>{if(r.cells[i]?.classList.contains('l'))th.classList.add('l')})})}
+new MutationObserver(alignHeads).observe(document.getElementById('main'),{childList:true,subtree:true});
+function sortable(tbl){
+  tbl.querySelectorAll('th').forEach((th,i)=>th.onclick=()=>{
+    const tb=tbl.tBodies[0],rows=[...tb.rows],asc=th.dataset.s!=='a';
+    tbl.querySelectorAll('th').forEach(t=>delete t.dataset.s);th.dataset.s=asc?'a':'d';
+    const v=r=>{const c=r.cells[i];const s=c.dataset.v??c.textContent.trim();const n=parseFloat(s.replace('%','').replace(',','.'));return isNaN(n)?s.toLowerCase():n};
+    rows.sort((a,b)=>{const x=v(a),y=v(b);return(x>y?1:x<y?-1:0)*(asc?1:-1)});rows.forEach(r=>tb.appendChild(r));
+    tbl.querySelectorAll('.rank').forEach((c,j)=>c.textContent=j+1);
+  });
+}
+function yearChart(rows,series,{h=220,yMin=0,yMax=100,ref=null}={}){
+  const W=Math.max(380,rows.length*52),pad=30,bw=(W-pad-6)/Math.max(rows.length,1);
+  const y=v=>h-22-((Math.min(Math.max(v,yMin),yMax)-yMin)/(yMax-yMin))*(h-38);
+  let s=`<svg viewBox="0 0 ${W} ${h}" width="100%" style="max-height:${h}px;overflow:visible"><defs>`;
+  series.forEach((se,j)=>s+=`<linearGradient id="g${j}${se.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${se.c}"/><stop offset="1" stop-color="${se.c}" stop-opacity=".25"/></linearGradient>`);
+  s+='</defs>';
+  [0,1,2,3,4].map(i=>yMin+i*(yMax-yMin)/4).forEach(t=>s+=`<line x1="${pad}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="rgba(255,255,255,.06)"/><text x="0" y="${y(t)+4}">${t}</text>`);
+  if(ref!=null)s+=`<line x1="${pad}" x2="${W}" y1="${y(ref)}" y2="${y(ref)}" stroke="rgba(255,255,255,.35)" stroke-dasharray="4 4"/>`;
+  rows.forEach((r,i)=>{const x0=pad+i*bw,w=(bw-10)/series.length;
+    series.forEach((se,j)=>{const v=se.v(r);if(v==null)return;
+      s+=`<rect x="${x0+5+j*w}" y="${y(v)}" width="${Math.max(w-2,2)}" height="${h-22-y(v)}" fill="url(#g${j}${se.id})"><title>${r.year} · ${se.n} : ${pct(v)}${se.t?' ('+se.t(r)+')':''}</title></rect>`});
+    s+=`<text x="${x0+bw/2}" y="${h-5}" text-anchor="middle">${String(r.year).slice(2)}</text>`});
+  return s+'</svg><div class="legend">'+series.map(se=>`<span><i style="background:${se.c}"></i>${se.n}</span>`).join('')+'</div>';
+}
+function rankChart(rows){
+  const T={o:{c:'#2f6bff',n:'Open'},w:{c:'#ffc61a',n:'Women'}}, pts=rows.map(r=>({t:r[0],d:new Date(r[1]),p:r[2],ds:r[1]}));
+  const t0=Math.min(...pts.map(p=>+p.d)),t1=Math.max(...pts.map(p=>+p.d)),pm=Math.max(10,...pts.map(p=>p.p));
+  const W=900,h=220,pl=40,pr=16,pt=14,pb=24, x=d=>pl+(t1===t0?0.5:(d-t0)/(t1-t0))*(W-pl-pr), y=p=>pt+(Math.log(p)/Math.log(pm))*(h-pt-pb);
+  let s=`<svg viewBox="0 0 ${W} ${h}" width="100%" style="max-height:${h}px">`;
+  [1,3,10,30,100,300,1000].filter(v=>v<=pm).forEach(v=>s+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,.06)"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">#${v}</text>`);
+  for(let yr=new Date(t0).getFullYear();yr<=new Date(t1).getFullYear();yr++){const d=+new Date(yr,0,1);if(d>=t0&&d<=t1)s+=`<text x="${x(d)}" y="${h-6}" text-anchor="middle">${String(yr).slice(2)}</text>`}
+  for(const k of ['o','w']){const p=pts.filter(q=>q.t===k).sort((a,b)=>a.d-b.d);if(!p.length)continue;
+    const segs=[[]];p.forEach((q,j)=>{if(j&&(q.d-p[j-1].d)>125*864e5)segs.push([]);segs.at(-1).push(q)});
+    for(const sg of segs)s+=`<polyline fill="none" stroke="${T[k].c}" stroke-width="2.2" points="${sg.map(q=>x(+q.d)+','+y(q.p)).join(' ')}" style="filter:drop-shadow(0 0 6px ${T[k].c})"/>`;
+    s+=p.map(q=>`<circle cx="${x(+q.d)}" cy="${y(q.p)}" r="${p.length>40?2:3.5}" fill="${T[k].c}"><title>${T[k].n} ${q.ds} : #${q.p}</title></circle>`).join('')}
+  return s+`</svg><div class="legend">${['o','w'].filter(k=>pts.some(p=>p.t===k)).map(k=>`<span><i style="background:${T[k].c}"></i>${T[k].n}</span>`).join('')}<span>échelle log · plus haut = meilleur</span></div>`;
+}
+function rankCol(p){return p<=1?'background:linear-gradient(135deg,#ffe27a,#ffc61a);color:#1b1400':p<=10?'background:rgba(255,198,26,.35);color:#fff':p<=50?'background:rgba(47,107,255,.45);color:#fff':p<=200?'background:rgba(47,107,255,.16);color:var(--ink)':'background:rgba(255,255,255,.04);color:var(--mut)'}
+function rankGrid(rows,t){
+  const r=rows.filter(x=>x[0]===t);if(!r.length)return'';
+  const by={};for(const[,d,p]of r){const y=+d.slice(0,4),m=+d.slice(5,7);(by[y]??={})[m]=Math.min(by[y][m]??1e9,p)}
+  const ys=Object.keys(by).map(Number).sort((a,b)=>b-a),MO=['J','F','M','A','M','J','J','A','S','O','N','D'];
+  return`<h2 style="margin-top:18px;font-size:17px">${t==='o'?'Open':'Women'} · mois par mois</h2><div class="rgrid"><div></div>${MO.map(m=>`<div class="hd">${m}</div>`).join('')}
+   ${ys.map(y=>`<div class="yr">${y}</div>${MO.map((_,i)=>{const p=by[y][i+1];return p?`<div class="c" style="${rankCol(p)}" title="${y}-${String(i+1).padStart(2,'0')} : #${p}">${p}</div>`:'<div></div>'}).join('')}`).join('')}</div>
+   <div class="legend"><span><i style="${rankCol(1)}"></i>n°1</span><span><i style="${rankCol(5)}"></i>top 10</span><span><i style="${rankCol(30)}"></i>top 50</span><span><i style="${rankCol(100)}"></i>top 200</span></div>`;
+}
+function picker(id,ph){return`<div class="search"><input id="${id}" placeholder="${ph}" autocomplete="off"><div class="sugg" id="${id}s" hidden></div></div>`}
+function bindPicker(id,cb){
+  const i=$('#'+id),s=$('#'+id+'s');let r=[],sel=0;
+  const nz=v=>v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const starts=(x,q)=>nz(x.name).startsWith(q)||x.key.split(' ').some(w=>w.startsWith(q));
+  const pick=k=>{if(!r[k])return;s.hidden=true;i.value=r[k].name;i.blur();cb(r[k].i)};
+  const draw=()=>{s.innerHTML=r.map((x,k)=>`<div data-k="${k}" class="${k===sel?'on':''}"><span class="avatar xs${avCls(x.i)}">${avIn(x.i,false)}</span><b>${esc(x.name)}</b>${cc(x.country)}</div>`).join('');s.hidden=!r.length};
+  i.oninput=()=>{const q=nz(i.value.trim());if(q.length<2){s.hidden=true;r=[];return}
+    r=SK.filter(x=>x.key.includes(q)||nz(x.name).includes(q)).sort((a,b)=>starts(b,q)-starts(a,q)).slice(0,10);sel=0;draw()};
+  s.onmousedown=e=>e.preventDefault();             // garde le focus : la liste ne disparaît pas avant le clic
+  s.onclick=e=>{const d=e.target.closest('[data-k]');if(d)pick(+d.dataset.k)};
+  i.onkeydown=e=>{if(s.hidden||!r.length)return;
+    if(e.key==='ArrowDown'){sel=Math.min(sel+1,r.length-1);draw();e.preventDefault()}
+    else if(e.key==='ArrowUp'){sel=Math.max(sel-1,0);draw();e.preventDefault()}
+    else if(e.key==='Enter'){pick(sel);e.preventDefault()}else if(e.key==='Escape')s.hidden=true};
+  i.onfocus=()=>{if(r.length)s.hidden=false};
+  i.onblur=()=>setTimeout(()=>s.hidden=true,150);
+}
+
+/* ===================== vues ===================== */
+const CRIT={
+  w:{n:'Victoires',v:r=>r.w,f:v=>v.toLocaleString('fr'),sub:r=>`${pct(r.pct)} · ${r.m} matchs`},
+  st:{n:'Série de victoires (1 jour)',v:r=>r.lws,f:v=>v+' V',sub:r=>`d'affilée dans une même journée · pire : ${r.lls} D`},
+  pct:{n:'% de victoires',v:r=>r.pct,f:v=>pct(v),min:true,sub:r=>`${r.w} V · ${r.l} D`},
+  ti:{n:'Titres',v:r=>r.ti+r.po/1000,f:v=>Math.floor(v),sub:r=>`${r.po} podiums · ${r.nev} events`},
+  ko:{n:'% en phases finales',v:r=>r.km>=30?r.kpct:null,f:v=>pct(v),min:true,sub:r=>`${r.kw} V · ${r.kl} D en KO`},
+  m:{n:'Matchs courus',v:r=>r.m,f:v=>v.toLocaleString('fr'),sub:r=>`${r.nev} events · ${r.y0}–${r.y1}`},
+};
+const initials=n=>n.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const avIn=(i,flag=true)=>(D.photos[i]?`<img class="ph" src="photos/${D.photos[i]}" alt="${esc(SK[i].name)}" loading="lazy">`:initials(SK[i].name))+(flag?cc(SK[i].country):'');
+const avCls=i=>D.photos[i]?' photo':'';
+function viewBoard(){
+  const ms=matchesF(),A={};
+  for(const m of ms){add(A[m.p]??=blank(),m,'p');add(A[m.s]??=blank(),m,'s')}
+  const rk=ranksF();
+  const all=Object.entries(A).map(([i,a])=>({i:+i,...finalize(a),ti:rk[i]?.ti||0,po:rk[i]?.po||0}));
+  const nEv=new Set(ms.map(m=>m.e)).size,yel=ms.filter(m=>m.w===2).length,dec=ms.filter(m=>m.w===1||m.w===2).length;
+  const {q}=parseHash(),by=CRIT[q.get('by')]?q.get('by'):'w',C=CRIT[by],mn=+(q.get('min')||100);
+  const top=all.filter(r=>(!C.min||r.m>=mn)&&C.v(r)!=null).sort((a,b)=>C.v(b)-C.v(a)||b.m-a.m).slice(0,10);
+  const go=o=>{const p=new URLSearchParams(fq().slice(1));p.set('by',o.by??by);if(CRIT[o.by??by].min)p.set('min',o.min??mn);location.hash='#/?'+p};
+  const lead=top.length?C.v(top[0]):1;
+  const pod=(r,k)=>!r?'<div></div>':`<a class="pod p${k}" href="${link('/skipper/'+encodeURIComponent(SK[r.i].key))}">
+      <div class="medal">${k}</div><div class="avatar sm${avCls(r.i)}">${avIn(r.i)}</div>
+      <div class="pn">${esc(SK[r.i].name)}</div><div class="pc">${esc(CN(SK[r.i].country)||'')}</div>
+      <div class="pv">${C.f(C.v(r))}</div><div class="ps">${C.sub(r)}</div>
+      <div class="pd">${donut(r,74,{label:false})}<div class="pdl"><span style="color:var(--blu2)">${pct(r.bpct)} bleu</span><span style="color:var(--yel)">${pct(r.ypct)} jaune</span></div></div>
+      <div class="step"></div></a>`;
+  M.innerHTML=`<div class="strip fade">
+      <div class="counters"><div><b>${ms.length.toLocaleString('fr')}</b><span>matchs</span></div><div><b>${nEv}</b><span>events</span></div><div><b>${all.length.toLocaleString('fr')}</b><span>skippers</span></div><div><b style="color:var(--yel)">${pct(P100(yel,dec))}</b><span>victoires du jaune</span></div></div>
+      <div style="width:280px;max-width:100%">${picker('qs','Trouver un skipper…')}</div></div>
+    <div class="crit fade">${Object.entries(CRIT).map(([k,v])=>`<button class="btn ${k===by?'':'ghost'}" data-by="${k}">${v.n}</button>`).join('')}
+      ${C.min?`<select id="mn">${[20,50,100,200,400].map(n=>`<option value="${n}" ${n===mn?'selected':''}>≥ ${n} matchs</option>`).join('')}</select>`:''}</div>
+    ${top.length?`<div class="podium fade">${pod(top[1],2)}${pod(top[0],1)}${pod(top[2],3)}</div>
+    <div class="board fade">${top.slice(3).map((r,j)=>{const v=C.v(r);return`<a class="brow" href="${link('/skipper/'+encodeURIComponent(SK[r.i].key))}">
+      <span class="bn">${j+4}</span><span class="avatar xs${avCls(r.i)}">${avIn(r.i,false)}</span>
+      <span class="bname"><b>${esc(SK[r.i].name)}</b>${cc(SK[r.i].country)}<small>${C.sub(r)}</small></span>
+      <span class="bbar"><i style="width:${Math.max(4,100*v/lead)}%"></i></span>
+      <span class="bv">${C.f(v)}</span><span class="hide-m">${donut(r,38,{label:false})}</span></a>`}).join('')}</div>`
+    :'<div class="card note">Personne ne remplit ces critères avec ces filtres.</div>'}
+    <div class="note fade" style="text-align:center">${C.min?`Minimum ${mn} matchs · `:''}les filtres (années, women, youth, grade) s'appliquent au classement</div>`;
+  M.querySelectorAll('[data-by]').forEach(b=>b.onclick=()=>go({by:b.dataset.by}));
+  if($('#mn'))$('#mn').onchange=e=>go({min:e.target.value});
+  bindPicker('qs',i=>location.hash=link('/skipper/'+encodeURIComponent(SK[i].key)));
+}
+
+function viewSkipper(key){
+  const si=KEY2I[key];if(si==null){M.innerHTML='<div class="loading">Skipper inconnu</div>';return}
+  const ms=matchesF().filter(m=>m.p===si||m.s===si);
+  if(!ms.length){M.innerHTML=`<div class="loading">${esc(SK[si].name)} : aucun match avec ces filtres</div>`;return}
+  const A=blank(),byY={},byS={},H={},E={},list=[];
+  for(const m of ms){
+    const side=m.p===si?'p':'s',opp=side==='p'?m.s:m.p,res=add(A,m,side),y=EV[m.e].year;
+    add(byY[y]??=blank(),m,side);add(byS[m.k]??=blank(),m,side);add(H[opp]??=blank(),m,side);add(E[m.e]??=blank(),m,side);
+    list.push({m,side,opp,res});
+  }
+  finalize(A);const mo=momentum(list);
+  const f=filt(),rk={};for(const r of D.R)if(r.s===si&&evOK(r.e,f))rk[r.e]=r.r;
+  const nEnt={};for(const r of D.R)nEnt[r.e]=(nEnt[r.e]||0)+1;
+  const ti=Object.values(rk).filter(r=>r===1).length,po=Object.values(rk).filter(r=>r<=3).length;
+  const yrs=Object.entries(byY).map(([y,a])=>({year:+y,...finalize(a)})).sort((a,b)=>a.year-b.year);
+    const s=SK[si];
+  const rk_=D.ranks[si]||[], cur=t=>rk_.find(r=>r[0]===t[0]&&r[1]===D.rank_dates[t]), best=t=>{const x=rk_.filter(r=>r[0]===t[0]);return x.length?Math.min(...x.map(r=>r[2])):null};
+  const ini=s.name.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const wsl=s.ws?`https://www.sailing.org/sailor-search/?search=${encodeURIComponent(s.name)}`:null;
+  const rkInfo=['open','women'].map(t=>{const c=cur(t),b=best(t);if(!c&&!b)return'';return`<span>Mondial ${t==='open'?'Open':'Women'} <b>${c?'#'+c[2]:'–'}</b>${b?` · meilleur #${b}`:''}</span>`}).join('');
+  M.innerHTML=`<section class="sk-hero fade"><div style="display:flex;gap:22px;align-items:flex-end"><div class="avatar${avCls(si)}">${avIn(si)}</div><div>
+    <div class="sk-hero meta">${esc(CN(s.country)||'')} · ${A.y0}–${A.y1} · ${A.nev} events${s.ws?` · <a href="${wsl}" target="_blank" rel="noopener">World Sailing ${esc(s.ws)} ↗</a>`:''}</div><h1>${esc(s.name)}</h1>
+    ${rkInfo?`<div class="wsrank">${rkInfo}</div>`:''}<div style="margin-top:14px"><button class="btn" id="shot">Générer l'image</button></div></div></div>
+    <div class="donut-wrap">${donut(A,210)}<div class="dleg">
+      <div><i style="background:var(--blu)"></i><b style="color:var(--blu2)">${A.bw}</b><span>victoires en bleu<br>${pct(A.bpct)} · ${A.bw}/${A.bw+A.bl}</span></div>
+      <div><i style="background:var(--yel)"></i><b style="color:var(--yel)">${A.yw}</b><span>victoires en jaune<br>${pct(A.ypct)} · ${A.yw}/${A.yw+A.yl}</span></div>
+      <div><i style="background:rgba(255,255,255,.18)"></i><b class="mut">${A.l}</b><span>défaites<br>sur ${A.w+A.l} matchs décidés</span></div></div></div></section>
+  <div class="tiles fade">
+    <div class="tile"><div class="v">${A.m}</div><div class="l">matchs</div></div>
+    <div class="tile"><div class="v"><span class="W">${A.w}</span> <span class="mut">/</span> <span class="L">${A.l}</span></div><div class="l">victoires / défaites</div></div>
+    <div class="tile"><div class="v">${pct(A.pct)}</div><div class="l">% victoires</div></div>
+    <div class="tile y"><div class="v">${pct(A.ypct)}</div><div class="l">en jaune (tribord)</div></div>
+    <div class="tile b"><div class="v">${pct(A.bpct)}</div><div class="l">en bleu (bâbord)</div></div>
+    <div class="tile"><div class="v">${pct(A.rpct)}</div><div class="l">round robin</div></div>
+    <div class="tile"><div class="v">${pct(A.kpct)}</div><div class="l">phases finales · ${A.km}</div></div>
+    <div class="tile"><div class="v" style="color:var(--yel)">${ti}</div><div class="l">titres · ${po} podiums</div></div>
+    <div class="tile"><div class="v">${A.fw}/${A.fm}</div><div class="l">matchs de finale gagnés</div></div>
+    <div class="tile"><div class="v">${A.pen}</div><div class="l">matchs pénalisé</div></div>
+  </div>
+  ${momentumCard(mo)}
+  <div class="grid fade">
+    <div class="card"><h2>Saison par saison</h2>${yearChart(yrs,[
+      {id:'a',n:'global',c:'#c9d3f0',v:r=>r.pct,t:r=>r.w+'/'+(r.w+r.l)},
+      {id:'y',n:'jaune',c:'#ffc61a',v:r=>r.ypct,t:r=>r.yw+'/'+(r.yw+r.yl)},
+      {id:'b',n:'bleu',c:'#2f6bff',v:r=>r.bpct,t:r=>r.bw+'/'+(r.bw+r.bl)}],{ref:50})}
+      <div class="note">${yrs.map(r=>`${r.year} <b style="color:#fff">${r.m}</b>`).join(' · ')}</div></div>
+    <div class="card"><h2>Par phase</h2><table><thead><tr><th>Phase</th><th>Matchs</th><th>V–D</th><th>% V</th><th>Jaune</th><th>Bleu</th></tr></thead><tbody>
+      ${Object.entries(byS).map(([k,a])=>({k,...finalize(a)})).sort((a,b)=>b.m-a.m).map(r=>`<tr><td>${STAGE[r.k]||r.k}</td><td>${r.m}</td><td><span class="W">${r.w}</span>–<span class="L">${r.l}</span></td><td><b>${pct(r.pct)}</b>${meter(r.pct)}</td>
+      <td style="color:var(--yel)">${r.yw}/${r.ym}</td><td style="color:var(--blu2)">${r.bw}/${r.bm}</td></tr>`).join('')}</tbody></table></div>
+  </div>
+  ${rk_.length?`<div class="card fade"><h2>Classement mondial World Sailing <small>${rk_.length} classements mensuels</small></h2>${rankChart(rk_)}${['o','w'].map(t=>rankGrid(rk_,t)).join('')}</div>`:''}
+  <div class="grid fade">
+    <div class="card"><h2>Face-à-face <small>${Object.keys(H).length} adversaires</small></h2><div class="scroll" style="max-height:460px"><table id="th"><thead><tr><th>Adversaire</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th class="hide-m">en jaune</th><th></th></tr></thead><tbody>
+      ${Object.entries(H).map(([o,a])=>({o:+o,...finalize(a)})).sort((a,b)=>b.m-a.m).map(r=>`<tr><td data-v="${esc(SK[r.o].name)}">${skl(r.o)}</td><td>${r.m}</td><td class="W">${r.w}</td><td class="L">${r.l}</td><td data-v="${r.pct??-1}"><b>${pct(r.pct)}</b></td><td class="hide-m" style="color:var(--yel)">${r.yw}/${r.ym}</td>
+      <td><a href="${link('/h2h/'+encodeURIComponent(key)+'/'+encodeURIComponent(SK[r.o].key))}">duel →</a></td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><h2>Palmarès <small>${Object.keys(E).length} events</small></h2><div class="scroll" style="max-height:460px"><table id="te"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th class="hide-m">Bateau</th><th>Class.</th><th>V–D</th></tr></thead><tbody>
+      ${Object.entries(E).map(([e,a])=>({e:+e,...a})).sort((a,b)=>EV[b.e].date?.localeCompare(EV[a.e].date||'')||EV[b.e].year-EV[a.e].year).map(r=>{const ev=EV[r.e],k=rk[r.e];return`<tr><td class="l"><a href="${ev.url}" target="_blank" rel="noopener">${esc(ev.title)}</a></td><td data-v="${ev.g}">${gb(ev.grade)}</td><td class="mut">${ev.date||ev.year}</td><td class="hide-m mut">${esc(ev.boat||'')}</td>
+      <td data-v="${k??99}">${k?`<span class="big" style="color:${k===1?'var(--yel)':k<=3?'#fff':'var(--ink)'}">${k}</span><span class="mut">/${nEnt[r.e]}</span>`:'–'}</td><td><span class="W">${r.w}</span>–<span class="L">${r.l}</span></td></tr>`}).join('')}</tbody></table></div></div>
+  </div>
+  <div class="card fade"><h2>Tous les matchs <small>${list.length}</small></h2><div class="scroll" style="max-height:520px"><table id="tm"><thead><tr><th>Date</th><th>Event</th><th class="hide-m">Phase</th><th>Pavillon</th><th>Adversaire</th><th>Rés.</th><th class="hide-m">Score</th><th class="hide-m">Pénalité</th></tr></thead><tbody>
+    ${list.sort((a,b)=>b.m.date.localeCompare(a.m.date)||b.m.e-a.m.e).map(({m,side,opp,res})=>`<tr><td class="l mut">${m.date}${m.t?' '+m.t:''}</td><td class="l">${esc(EV[m.e].title)}</td><td class="l mut hide-m">${esc(m.st)}</td>
+    <td class="l"><span class="chip ${side==='s'?'yellow':'blue'}">${side==='s'?'jaune':'bleu'}</span></td><td class="l">${skl(opp)}</td><td class="${res}">${res}</td><td class="hide-m">${esc(side==='p'?m.pr:m.sr)}</td>
+    <td class="hide-m mut">${(side==='p'?m.pp:m.ps)?'lui':''}${(side==='p'?m.pp:m.ps)&&(side==='p'?m.ps:m.pp)?' + ':''}${(side==='p'?m.ps:m.pp)?'adv.':''}</td></tr>`).join('')}</tbody></table></div></div>`;
+  ['#th','#te','#tm'].forEach(x=>sortable($(x)));
+  const wsc=['open','women'].map(t=>cur(t)).filter(Boolean).sort((a,b)=>a[2]-b[2])[0];
+  $('#shot').onclick=async e=>{e.target.disabled=true;e.target.textContent='Génération…';try{await shareCard(si,A,{ti,po,lw:mo.lw.len,ws:wsc?`#${wsc[2]} ${wsc[0]==='o'?'Open':'Women'}`:''})}finally{e.target.disabled=false;e.target.textContent="Générer l'image"}};
+}
+
+function viewH2H(ka,kb){
+  const a=KEY2I[ka],b=KEY2I[kb];
+  M.innerHTML=`<div class="vs fade"><div class="side a"><div class="kicker">Skipper A</div>${picker('pa','Chercher…')}<div class="n" id="na">${a!=null?esc(SK[a].name):''}</div></div>
+    <div class="score" id="sc">VS</div>
+    <div class="side bb"><div class="kicker">Skipper B</div>${picker('pb','Chercher…')}<div class="n" id="nb">${b!=null?esc(SK[b].name):''}</div></div></div><div id="hr"></div>`;
+  const go=(x,y)=>{if(x!=null&&y!=null)location.hash=link('/h2h/'+encodeURIComponent(SK[x].key)+'/'+encodeURIComponent(SK[y].key));else viewH2H(x!=null?SK[x].key:'',y!=null?SK[y].key:'')};
+  bindPicker('pa',i=>go(i,b));bindPicker('pb',i=>go(a,i));
+  if(a==null||b==null){$('#hr').innerHTML='<div class="card note" style="text-align:center">Choisis deux skippers. Astuce : depuis une fiche skipper, « duel → » ouvre directement le face-à-face.</div>';return}
+  const L=[];for(const m of matchesF()){if(m.p===a&&m.s===b)L.push({m,side:'p'});else if(m.s===a&&m.p===b)L.push({m,side:'s'})}
+  const A=blank();L.forEach(x=>x.res=add(A,x.m,x.side));finalize(A);
+  $('#sc').innerHTML=`<span class="W">${A.w}</span> – <span class="L">${A.l}</span><small>${A.m} matchs</small><div style="display:flex;justify-content:center;margin-top:10px">${donut(A,130)}</div>`;
+  if(!L.length){$('#hr').innerHTML='<div class="card note" style="text-align:center">Jamais croisés (avec ces filtres).</div>';return}
+  $('#hr').innerHTML=`<div class="tiles fade">
+    <div class="tile y"><div class="v">${A.yw}/${A.ym}</div><div class="l">${esc(SK[a].name)} en jaune</div></div>
+    <div class="tile b"><div class="v">${A.bw}/${A.bm}</div><div class="l">${esc(SK[a].name)} en bleu</div></div>
+    <div class="tile"><div class="v">${A.rw}–${A.rl}</div><div class="l">round robin</div></div>
+    <div class="tile"><div class="v">${A.kw}–${A.kl}</div><div class="l">phases finales</div></div>
+    <div class="tile"><div class="v">${A.nev}</div><div class="l">events en commun</div></div></div>
+  <div class="card fade"><h2>Historique</h2><div class="scroll"><table><thead><tr><th>Date</th><th>Event</th><th class="hide-m">Phase</th><th>${esc(SK[a].name)}</th><th>Vainqueur</th><th class="hide-m">Score</th></tr></thead><tbody>
+  ${L.sort((x,y)=>y.m.date.localeCompare(x.m.date)).map(({m,side,res})=>`<tr><td class="l mut">${m.date}</td><td class="l"><a href="${EV[m.e].url}" target="_blank" rel="noopener">${esc(EV[m.e].title)}</a></td><td class="l mut hide-m">${esc(m.st)}</td>
+  <td class="l"><span class="chip ${side==='s'?'yellow':'blue'}">${side==='s'?'jaune':'bleu'}</span></td><td class="l ${res}">${res==='W'?esc(SK[a].name):res==='L'?esc(SK[b].name):res}</td><td class="hide-m">${esc(side==='p'?m.pr:m.sr)}–${esc(side==='p'?m.sr:m.pr)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function viewColours(){
+  const ms=matchesF().filter(m=>m.w===1||m.w===2),n=ms.length,y=ms.filter(m=>m.w===2).length;
+  const grp=(fn)=>{const g={};for(const m of ms){const k=fn(m);if(k==null)continue;const o=g[k]??={n:0,y:0,ev:new Set()};o.n++;if(m.w===2)o.y++;o.ev.add(m.e)}return g};
+  const byY=Object.entries(grp(m=>EV[m.e].year)).map(([k,o])=>({year:+k,...o,p:P100(o.y,o.n)})).sort((a,b)=>a.year-b.year);
+  const byK=Object.entries(grp(m=>m.k)).map(([k,o])=>({k,...o,p:P100(o.y,o.n)})).sort((a,b)=>b.n-a.n);
+  const byB=Object.entries(grp(m=>EV[m.e].boat)).map(([k,o])=>({k,...o,p:P100(o.y,o.n)})).filter(r=>r.n>=200).sort((a,b)=>b.n-a.n);
+  const all=matchesF(),pens=all.filter(m=>m.ps).length,penb=all.filter(m=>m.pp).length;
+  const yp=P100(y,n);
+  const row=(lab,r)=>`<tr><td>${lab}</td><td class="mut">${r.ev.size}</td><td>${r.n.toLocaleString('fr')}</td><td data-v="${r.p}"><b style="color:${r.p>=50?'var(--yel)':'var(--blu2)'}">${pct(r.p)}</b>${duel(r.p,100-r.p)}</td></tr>`;
+  M.innerHTML=`<section class="hero fade"><div class="kicker">Le pavillon fait-il gagner ?</div><h1><span class="y">Jaune</span> vs <span class="b">Bleu</span></h1>
+    <p>Le bateau jaune entre par tribord et a la priorité à l'entrée du prédépart. Voici ce que ça donne sur ${n.toLocaleString('fr')} matchs décidés.</p></section>
+  <div class="split fade"><div class="sy" style="width:${yp}%">${pct(yp)}<span>victoires du jaune · tribord</span></div><div class="sb" style="flex:1">${pct(100-yp)}<span>victoires du bleu · bâbord</span></div></div>
+  <div class="tiles fade"><div class="tile y"><div class="v">${y.toLocaleString('fr')}</div><div class="l">victoires du jaune</div></div><div class="tile b"><div class="v">${(n-y).toLocaleString('fr')}</div><div class="l">victoires du bleu</div></div>
+    <div class="tile y"><div class="v">${pens}</div><div class="l">pénalités jaune</div></div><div class="tile b"><div class="v">${penb}</div><div class="l">pénalités bleu</div></div></div>
+  <div class="grid fade"><div class="card"><h2>% jaune par saison</h2>${yearChart(byY,[{id:'y',n:'jaune',c:'#ffc61a',v:r=>r.p,t:r=>r.y+'/'+r.n}],{ref:50,yMin:40,yMax:60})}</div>
+    <div class="card"><h2>Par phase</h2><table><thead><tr><th>Phase</th><th>Ev.</th><th>Matchs</th><th>% jaune</th></tr></thead><tbody>${byK.map(r=>row(STAGE[r.k]||r.k,r)).join('')}</tbody></table></div></div>
+  <div class="card fade"><h2>Par bateau <small>détecté dans la description de l'event · ≥ 200 matchs</small></h2><table id="tb"><thead><tr><th>Bateau</th><th>Ev.</th><th>Matchs</th><th>% jaune</th></tr></thead><tbody>${byB.map(r=>row(esc(r.k),r)).join('')}</tbody></table></div>`;
+  sortable($('#tb'));
+}
+
+function viewEvents(){
+  const f=filt(),cnt={},win={},n={};
+  for(const m of D.M)cnt[m.e]=(cnt[m.e]||0)+1;
+  for(const r of D.R){n[r.e]=(n[r.e]||0)+1;if(r.r===1)win[r.e]=r.s}
+  const evs=EV.filter(e=>evOK(e.i,f)&&cnt[e.i]).sort((a,b)=>(b.date||b.year+'-12-31').localeCompare(a.date||a.year+'-12-31'));
+  M.innerHTML=`<section class="hero fade"><div class="kicker">Calendrier</div><h1>${evs.length} <span class="b">events</span></h1></section>
+  <div class="card fade"><div class="bar"><input id="eq" placeholder="Filtrer (nom, bateau…)" style="width:260px"></div><div class="scroll" style="max-height:780px"><table id="tv"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th class="hide-m">Lieu</th><th class="hide-m">Bateau</th><th>Équipes</th><th class="hide-m">Matchs</th><th>Vainqueur</th></tr></thead><tbody>
+  ${evs.map(e=>`<tr data-s="${esc((e.title+' '+(e.boat||'')+' '+(e.venue||'')+' '+CN(e.vc)).toLowerCase())}"><td class="l"><a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a> ${e.women?'<span class="pill">women</span>':''} ${e.youth?'<span class="pill">youth</span>':''}</td>
+  <td data-v="${e.g}">${gb(e.grade)}</td><td class="mut">${e.date||e.year}</td><td class="hide-m l mut">${esc(e.venue||'')}${cc(e.vc)}</td><td class="hide-m mut">${esc(e.boat||'')}</td><td>${n[e.i]||'–'}</td><td class="hide-m">${cnt[e.i]||0}</td><td class="l">${win[e.i]!=null?skl(win[e.i]):'–'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  sortable($('#tv'));
+  $('#eq').oninput=e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('#tv tbody tr').forEach(r=>r.hidden=!r.dataset.s.includes(q))};
+}
+
+
+/* ===================== pays ===================== */
+const SMALL={BER:[-64.75,32.3],ISV:[-64.9,18.3],CAY:[-81.3,19.3],TAH:[-149.4,-17.6],NCL:[165.6,-21.3],SIN:[103.8,1.35],MRI:[57.55,-20.2],
+  PUR:[-66.5,18.2],BAH:[-77.4,25.0],HKG:[114.2,22.3],MLT:[14.4,35.9],MON:[7.42,43.73],ANT:[-61.8,17.1],BAR:[-59.6,13.2],IVB:[-64.6,18.4],BRN:[50.55,26.05],LIE:[9.55,47.15],AND:[1.52,42.5]};
+let TOPO;
+async function topo(){if(!TOPO){const t=await fetch('vendor/countries-50m.json').then(r=>r.json());TOPO=topojson.feature(t,t.objects.countries).features}return TOPO}
+function countryAgg(){
+  const f=filt(),ms=matchesF(),C={};
+  const g=c=>C[c]??={...blank(),sk:new Set(),ti:0,po:0,host:new Set(),top:{}};
+  for(const m of ms)for(const side of ['p','s']){const i=side==='p'?m.p:m.s,c=SK[i].country;if(!c)continue;const a=g(c),res=add(a,m,side);a.sk.add(i);if(res==='W')a.top[i]=(a.top[i]||0)+1}
+  for(const r of D.R)if(evOK(r.e,f)){const c=SK[r.s].country;if(!c)continue;const a=g(c);if(r.r===1)a.ti++;if(r.r<=3)a.po++}
+  for(const e of EV)if(evOK(e.i,f)&&e.vc)g(e.vc).host.add(e.i);
+  return Object.entries(C).map(([c,a])=>{finalize(a);const best=Object.entries(a.top).sort((x,y)=>y[1]-x[1])[0];return{c,...a,nsk:a.sk.size,nhost:a.host.size,best:best?+best[0]:null}});
+}
+const METRICS={
+  m:{n:'Matchs courus',v:r=>r.m||null,f:v=>v.toLocaleString('fr'),sqrt:1},
+  pct:{n:'% victoires (≥ 200 matchs)',v:r=>r.m>=200?r.pct:null,f:pct},
+  ti:{n:'Titres',v:r=>r.ti||null,f:v=>v,sqrt:1},
+  nsk:{n:'Skippers',v:r=>r.nsk||null,f:v=>v,sqrt:1},
+  nhost:{n:'Events organisés',v:r=>r.nhost||null,f:v=>v,sqrt:1},
+  ypct:{n:'% jaune (≥ 200 matchs)',v:r=>r.m>=200?r.ypct:null,f:pct},
+  wsavg:{n:'Rang WS moyen (≥ 3 classés)',v:r=>(D.ws_country[r.c]?.o?.[0]??0)>=3?D.ws_country[r.c].o[1]:null,f:v=>'#'+Math.round(v),inv:1,ws:1},
+  wsn:{n:'Classés WS',v:r=>D.ws_country[r.c]?.o?.[0]??null,f:v=>v,sqrt:1,ws:1},
+};
+const RAMP=['#14254f','#2f6bff','#8a7dff','#ffc61a'];
+function ramp(t){t=Math.max(0,Math.min(1,t))*3;const i=Math.min(2,Math.floor(t)),u=t-i;
+  const h=x=>[1,3,5].map(k=>parseInt(x.slice(k,k+2),16));const A=h(RAMP[i]),B=h(RAMP[i+1]);return`rgb(${A.map((v,k)=>Math.round(v+(B[k]-v)*u)).join(',')})`}
+async function viewCountries(){
+  const {q}=parseHash(),mk=METRICS[q.get('m')]?q.get('m'):'m',MT=METRICS[mk],rows=countryAgg();
+  if(MT.ws)for(const c of Object.keys(D.ws_country))if(!rows.some(r=>r.c===c))rows.push({c,m:0,w:0,l:0,pct:null,ypct:null,bpct:null,nsk:0,ti:0,po:0,nhost:0,best:null,stub:1});
+  const by=Object.fromEntries(rows.map(r=>[r.c,r])),vals=rows.map(MT.v).filter(v=>v!=null),lo=Math.min(...vals),hi=Math.max(...vals);
+  const norm0=v=>v==null?null:MT.sqrt?Math.sqrt(v-lo)/Math.sqrt(hi-lo||1):(v-lo)/(hi-lo||1),norm=v=>v==null?null:MT.inv?1-norm0(v):norm0(v);
+  const num2ioc={};for(const[k,[,n]]of Object.entries(D.countries))if(n!=null)num2ioc[String(n).padStart(3,'0')]=k;
+  M.innerHTML=`<section class="hero fade"><div class="kicker">Carte du match racing</div><h1>Le monde du <span class="y">match</span> <span class="b">race</span></h1>
+    <p>${rows.length} nations. Survole un pays pour ses chiffres, clique pour ouvrir sa fiche.</p></section>
+  <div class="card fade"><div class="bar">${Object.entries(METRICS).map(([k,v])=>`<button class="btn ${k===mk?'':'ghost'}" data-m="${k}">${v.n}</button>`).join('')}</div>
+    <svg id="map" viewBox="0 0 1000 520"></svg>
+    <div class="scale"><span>${MT.f(MT.inv?hi:lo)}</span><i></i><span>${MT.f(MT.inv?lo:hi)}</span><span style="margin-left:auto">${esc(MT.n)}${MT.ws?` · classement Open World Sailing du ${D.rank_dates.open} (tous les classés)`:''}</span></div></div>
+  <div class="card fade"><h2>Toutes les nations</h2><div class="scroll"><table id="tc"><thead><tr><th>Pays</th><th>Skippers</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th>% jaune</th><th>% bleu</th><th>Titres</th><th class="hide-m">Podiums</th><th class="hide-m">Events org.</th><th class="hide-m">Classés WS</th><th class="hide-m">Rang WS moyen</th><th class="hide-m">Meilleur skipper</th></tr></thead><tbody>
+  ${rows.filter(r=>!r.stub).sort((a,b)=>b.m-a.m).map(r=>`<tr><td class="l" data-v="${esc(CN(r.c))}">${cc(r.c)} <a class="nm" href="${link('/country/'+r.c)}" style="margin-left:6px">${esc(CN(r.c))}</a></td><td>${r.nsk}</td><td class="big">${r.m}</td><td class="W">${r.w}</td><td class="L">${r.l}</td>
+   <td data-v="${r.pct??-1}"><b>${pct(r.pct)}</b></td><td style="color:var(--yel)" data-v="${r.ypct??-1}">${pct(r.ypct)}</td><td style="color:var(--blu2)" data-v="${r.bpct??-1}">${pct(r.bpct)}</td>
+   <td class="big" style="color:${r.ti?'var(--yel)':'var(--mut)'}">${r.ti}</td><td class="hide-m">${r.po}</td><td class="hide-m">${r.nhost}</td><td class="hide-m">${D.ws_country[r.c]?.o?.[0]??'–'}</td><td class="hide-m" data-v="${D.ws_country[r.c]?.o?.[1]??9999}">${D.ws_country[r.c]?.o?`#${Math.round(D.ws_country[r.c].o[1])} <span class="mut">(meilleur #${D.ws_country[r.c].o[2]})</span>`:'–'}</td><td class="hide-m l">${r.best!=null?skl(r.best):''}</td></tr>`).join('')}</tbody></table></div></div>`;
+  sortable($('#tc'));
+  M.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const p=new URLSearchParams(fq().slice(1));p.set('m',b.dataset.m);location.hash='#/countries?'+p});
+  const feats=await topo();
+  const proj=d3.geoNaturalEarth1().fitExtent([[6,6],[994,514]],{type:'Sphere'}),path=d3.geoPath(proj);
+  const tip=document.querySelector('.tip')||document.body.appendChild(Object.assign(document.createElement('div'),{className:'tip'}));
+  const wsTip=c=>{const w=D.ws_country[c]?.o;return w?`<br>World Sailing : ${w[0]} classés · rang moyen #${Math.round(w[1])} · meilleur #${w[2]}`:''};
+  const tipHtml=c=>{const r=by[c];return`<b>${cc(c)} ${esc(CN(c))}</b>${r&&r.stub?`<span class="mut">aucun match dans nos données</span>${wsTip(c)}`:r?`${esc(MT.n)} : <span style="color:var(--yel)">${MT.v(r)==null?'–':MT.f(MT.v(r))}</span><br>${r.m} matchs · ${pct(r.pct)} de victoires<br>${r.nsk} skippers · ${r.ti} titres · ${r.nhost} events organisés${wsTip(c)}`:'<span class="mut">pas de données</span>'}`};
+  let svg=`<path class="sph" d="${path({type:'Sphere'})}"/><path class="grat" d="${path(d3.geoGraticule10())}"/>`;
+  const seen=new Set();
+  for(const f of feats){const c=num2ioc[f.id],r=c&&by[c],v=r?norm(MT.v(r)):null;if(c)seen.add(c);
+    svg+=`<path class="c${r?' has':''}" data-c="${c||''}" d="${path(f)}" fill="${v==null?'rgba(255,255,255,.03)':ramp(v)}"/>`}
+  for(const r of rows)if(!seen.has(r.c)&&SMALL[r.c]){const[x,y]=proj(SMALL[r.c]),v=norm(MT.v(r));svg+=`<circle class="dotc" data-c="${r.c}" cx="${x}" cy="${y}" r="4.5" fill="${v==null?'#334':ramp(v)}"/>`}
+  const el=$('#map');if(!el)return;el.innerHTML=svg;
+  el.querySelectorAll('[data-c]').forEach(p=>{const c=p.dataset.c;if(!c)return;
+    p.onmousemove=e=>{tip.innerHTML=tipHtml(c);tip.style.display='block';tip.style.left=Math.min(e.clientX+14,innerWidth-260)+'px';tip.style.top=(e.clientY+14)+'px'};
+    p.onmouseleave=()=>tip.style.display='none';
+    if(by[c])p.onclick=()=>{tip.style.display='none';location.hash=link('/country/'+c)}});
+}
+function viewCountry(c){
+  const r=countryAgg().find(x=>x.c===c);
+  if(!r){M.innerHTML=`<div class="loading">${esc(CN(c))} : aucun match avec ces filtres</div>`;return}
+  const f=filt(),ms=matchesF(),A={};
+  for(const m of ms){if(SK[m.p].country===c)add(A[m.p]??=blank(),m,'p');if(SK[m.s].country===c)add(A[m.s]??=blank(),m,'s')}
+  const rk=ranksF(),sks=Object.entries(A).map(([i,a])=>({i:+i,...finalize(a),ti:rk[i]?.ti||0})).sort((a,b)=>b.m-a.m);
+  const hosted=EV.filter(e=>e.vc===c&&evOK(e.i,f)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const win={};for(const x of D.R)if(x.r===1)win[x.e]=x.s;
+  M.innerHTML=`<section class="sk-hero fade"><div style="display:flex;gap:22px;align-items:flex-end">${cc(c,1)}<div><div class="sk-hero meta">${r.nsk} skippers · ${r.y0}–${r.y1}</div><h1>${esc(CN(c))}</h1></div></div>
+    <div class="donut-wrap">${donut(r,190)}<div class="dleg">
+      <div><i style="background:var(--blu)"></i><b style="color:var(--blu2)">${r.bw}</b><span>victoires en bleu<br>${pct(r.bpct)}</span></div>
+      <div><i style="background:var(--yel)"></i><b style="color:var(--yel)">${r.yw}</b><span>victoires en jaune<br>${pct(r.ypct)}</span></div>
+      <div><i style="background:rgba(255,255,255,.18)"></i><b class="mut">${r.l}</b><span>défaites</span></div></div></div></section>
+  <div class="tiles fade"><div class="tile"><div class="v">${r.m.toLocaleString('fr')}</div><div class="l">matchs</div></div><div class="tile"><div class="v">${pct(r.pct)}</div><div class="l">% victoires</div></div>
+    <div class="tile"><div class="v" style="color:var(--yel)">${r.ti}</div><div class="l">titres · ${r.po} podiums</div></div><div class="tile"><div class="v">${pct(r.kpct)}</div><div class="l">phases finales</div></div>
+    <div class="tile"><div class="v">${r.nhost}</div><div class="l">events organisés</div></div></div>
+  <div class="grid fade"><div class="card"><h2>Skippers <small>${sks.length}</small></h2><div class="scroll" style="max-height:560px"><table id="ts"><thead><tr><th>Skipper</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th>Titres</th><th class="hide-m">Années</th></tr></thead><tbody>
+    ${sks.map(x=>`<tr><td class="l" data-v="${esc(SK[x.i].name)}">${skl(x.i)}</td><td class="big">${x.m}</td><td class="W">${x.w}</td><td class="L">${x.l}</td><td data-v="${x.pct??-1}"><b>${pct(x.pct)}</b></td><td>${x.ti}</td><td class="hide-m mut">${x.y0}–${String(x.y1).slice(2)}</td></tr>`).join('')}</tbody></table></div></div>
+   <div class="card"><h2>Events organisés <small>${hosted.length} · lieu World Sailing</small></h2><div class="scroll" style="max-height:560px"><table id="th2"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th>Vainqueur</th></tr></thead><tbody>
+    ${hosted.map(e=>`<tr><td class="l"><a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a><div class="mut" style="font-size:11px">${esc(e.venue||'')}</div></td><td data-v="${e.g}">${gb(e.grade)}</td><td class="mut">${e.date||e.year}</td><td class="l">${win[e.i]!=null?skl(win[e.i]):'–'}</td></tr>`).join('')||'<tr><td class="mut l" colspan="4">Aucun event relié à World Sailing pour ce pays.</td></tr>'}</tbody></table></div></div></div>`;
+  ['#ts','#th2'].forEach(x=>sortable($(x)));
+}
+
+/* ===================== séries & momentum ===================== */
+// Pas d'horodatage, mais la date du jour (schedule) + le n° de match donnent l'ordre réel dans une journée.
+// Séries et momentum ne sont calculés que sur des matchs datés, à l'intérieur d'une même journée.
+function runsZ(segs){let R=0,E=0,V=0;
+  for(const sq of segs){const n=sq.length,W=sq.filter(r=>r==='W').length,L=n-W;if(n<2)continue;
+    let r=1;for(let i=1;i<n;i++)if(sq[i]!==sq[i-1])r++;R+=r;
+    if(W&&L){E+=2*W*L/n+1;V+=2*W*L*(2*W*L-n)/(n*n*(n-1))}else E+=1}
+  return V>0?{R,E,z:(R-E)/Math.sqrt(V)}:{R,E,z:null}}
+function momentum(list){
+  const seq=list.filter(x=>(x.res==='W'||x.res==='L')&&x.m.hd);
+  const day=x=>x.m.e+'|'+x.m.date;
+  const o={n:seq.length,lw:{len:0},ll:{len:0},tr:{WW:0,WL:0,LW:0,LL:0},t2:{WWW:0,WWL:0,LLW:0,LLL:0},days:0,perfect:0,bestDay:null};
+  // même journée + même round robin : chaque match contre un adversaire différent
+  const same=(a,b)=>a&&b&&day(a)===day(b)&&a.m.st===b.m.st&&b.m.k==='round_robin';
+  let run=null;
+  seq.forEach((x,i)=>{
+    const r=x.res,P=seq[i-1],PP=seq[i-2];
+    if(same(P,x))o.tr[P.res+r]++;
+    if(same(PP,P)&&same(P,x)&&P.res===PP.res)o.t2[PP.res+P.res+r]++;
+    if(!run||run.r!==r||day(run.to)!==day(x)){run={r,len:0,from:x,to:x}}
+    run.len++;run.to=x;
+    const best=r==='W'?o.lw:o.ll;if(run.len>best.len)Object.assign(best,{len:run.len,m:x.m});
+  });
+  // journées
+  const D_={};for(const x of seq){const d=D_[day(x)]??={w:0,l:0,m:x.m};x.res==='W'?d.w++:d.l++}
+  for(const d of Object.values(D_)){o.days++;if(d.l===0&&d.w>=4)o.perfect++;if(!o.bestDay||d.w>o.bestDay.w||(d.w===o.bestDay.w&&d.l<o.bestDay.l))o.bestDay=d}
+  o.W=seq.filter(x=>x.res==='W').length;o.base=P100(o.W,seq.length);
+  o.afterW=P100(o.tr.WW,o.tr.WW+o.tr.WL);o.afterL=P100(o.tr.LW,o.tr.LW+o.tr.LL);
+  o.after2W=P100(o.t2.WWW,o.t2.WWW+o.t2.WWL);o.after2L=P100(o.t2.LLW,o.t2.LLW+o.t2.LLL);
+  const segs=[];let cur=null;for(const x of seq){if(x.m.k!=='round_robin')continue;const g=day(x)+'|'+x.m.st;if(!cur||cur.g!==g){cur={g,r:[]};segs.push(cur)}cur.r.push(x.res)}
+  o.inEv=runsZ(segs.map(s=>s.r));
+  // valeurs attendues si l'ordre des matchs de la journée était aléatoire
+  const ex={WW:0,WL:0,LW:0,LL:0,WWW:0,WWL:0,LLW:0,LLL:0};
+  for(const sg of segs){const n=sg.r.length,W=sg.r.filter(r=>r==='W').length,L=n-W;if(n<2)continue;
+    ex.WW+=W*(W-1)/n;ex.WL+=W*L/n;ex.LW+=W*L/n;ex.LL+=L*(L-1)/n;
+    if(n>=3){const d=n*(n-1);ex.WWW+=W*(W-1)*(W-2)/d;ex.WWL+=W*(W-1)*L/d;ex.LLW+=L*(L-1)*W/d;ex.LLL+=L*(L-1)*(L-2)/d}}
+  o.expW=P100(ex.WW,ex.WW+ex.WL);o.expL=P100(ex.LW,ex.LW+ex.LL);o.exp2W=P100(ex.WWW,ex.WWW+ex.WWL);o.exp2L=P100(ex.LLW,ex.LLW+ex.LLL);
+  o.dated=P100(seq.length,list.filter(x=>x.res==='W'||x.res==='L').length);
+  // heure du résultat (fil live) : moment de la journée, 1er match du jour, temps depuis son match précédent
+  const mins=x=>x.m.t?(+x.m.t.slice(0,2))*60+(+x.m.t.slice(3)):null,wp=xs=>({c:xs.length,p:P100(xs.filter(x=>x.res==='W').length,xs.length)});
+  o.tod=[['avant 12 h',0,720],['12 h – 14 h',720,840],['14 h – 16 h',840,960],['après 16 h',960,1440]].map(([n,a,b])=>({n,...wp(seq.filter(x=>{const v=mins(x);return v!=null&&v>=a&&v<b}))}));
+  const first=[],G=[[],[],[]];
+  seq.forEach((x,i)=>{const P=seq[i-1];if(!P||day(P)!==day(x)){first.push(x);return}const a=mins(P),b=mins(x);if(a==null||b==null||b<a)return;const g=b-a;G[g<30?0:g<60?1:2].push(x)});
+  o.first={n:'1er match du jour',...wp(first)};
+  o.gap=[['moins de 30 min',G[0]],['30 à 60 min',G[1]],['plus d\'1 h',G[2]]].map(([n,xs])=>({n,...wp(xs)}));
+  o.timed=seq.filter(x=>x.m.t).length;
+  // jour de la semaine (date locale de l'event)
+  const dow=x=>{const[y,m,d]=x.m.date.split('-').map(Number);return(new Date(y,m-1,d).getDay()+6)%7};
+  o.dow=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'].map((n,k)=>({n,...wp(seq.filter(x=>dow(x)===k))}));
+  return o;
+}
+function verdict(mo){
+  const z=mo.inEv.z;
+  if(z==null||mo.tr.WW+mo.tr.WL<15||mo.tr.LW+mo.tr.LL<15)return{t:'Pas assez de matchs',d:'Il faut davantage de matchs enchaînés dans une même journée de round robin pour conclure.',c:'var(--mut)'};
+  if(z<=-2)return{t:'Joue en séries',d:`Dans une journée, ses victoires et ses défaites s'enchaînent plus que par hasard (test des runs z = ${z.toFixed(1)}). Après une défaite il gagne ${pct(mo.afterL)} au match suivant, pour ${pct(mo.expL)} attendus : une défaite tend à en entraîner d'autres.`,c:'var(--loss)'};
+  if(z>=2)return{t:'Rebondit',d:`Dans une journée, il alterne plus que le hasard (z = +${z.toFixed(1)}) : après une défaite il gagne ${pct(mo.afterL)} au match suivant, pour ${pct(mo.expL)} attendus.`,c:'var(--win)'};
+  return{t:'Pas d\'effet momentum',d:`Dans une journée, l'enchaînement de ses résultats est compatible avec le hasard (z = ${z>0?'+':''}${z.toFixed(1)}). Après une défaite : ${pct(mo.afterL)} de victoires au match suivant, pour ${pct(mo.expL)} attendus.`,c:'var(--blu2)'};
+}
+const dayLabel=m=>`${m.date}<br><span class="mut">${esc(EV[m.e].title)}</span>`;
+function tbar(b,base){const d=b.p!=null?b.p-base:null;return`<div class="mrow"><span>${b.n}</span><span class="mbar"><i style="width:${b.p??0}%"></i><em style="left:${base}%"></em></span><b>${b.c>=8?pct(b.p):'–'}</b><small class="mut">${b.c} matchs${b.c>=8&&d!=null?` · <span style="color:${d>=0?'var(--win)':'var(--loss)'}">${d>=0?'+':''}${d.toFixed(1)}</span>`:''}</small></div>`}
+function momentumCard(mo){
+  const v=verdict(mo),bd=mo.bestDay;
+  const bar=(lab,val,exp,n)=>{const d=val!=null&&exp!=null?val-exp:null;return`<div class="mrow"><span>${lab}</span><span class="mbar"><i style="width:${val??0}%"></i><em style="left:${exp??0}%" title="attendu si hasard : ${pct(exp)}"></em></span><b>${pct(val)}</b><small style="color:${d==null?'var(--mut)':d>=0?'var(--win)':'var(--loss)'}">${d==null?'':(d>=0?'+':'')+d.toFixed(1)+' pts'}</small></div>`};
+  return `<div class="card fade"><h2>Séries &amp; momentum <small>dans une même journée · ordre = heure du résultat (fil live), à défaut n° de match · ${pct(mo.dated)} de ses matchs sont datés</small></h2>
+   <div class="tiles" style="margin-bottom:14px">
+    <div class="tile"><div class="v W">${mo.lw.len}</div><div class="l">plus longue série de victoires sur une journée</div><div class="note" style="margin-top:6px">${mo.lw.len?dayLabel(mo.lw.m):''}</div></div>
+    <div class="tile"><div class="v L">${mo.ll.len}</div><div class="l">plus longue série de défaites sur une journée</div><div class="note" style="margin-top:6px">${mo.ll.len?dayLabel(mo.ll.m):''}</div></div>
+    <div class="tile"><div class="v" style="color:var(--yel)">${mo.perfect}</div><div class="l">journées parfaites<br>≥ 4 matchs, 0 défaite · sur ${mo.days} jours</div></div>
+    <div class="tile"><div class="v">${bd?`<span class="W">${bd.w}</span>–<span class="L">${bd.l}</span>`:'–'}</div><div class="l">meilleure journée</div><div class="note" style="margin-top:6px">${bd?dayLabel(bd.m):''}</div></div>
+    <div class="tile"><div class="v">${mo.inEv.z==null?'–':(mo.inEv.z>0?'+':'')+mo.inEv.z.toFixed(1)}</div><div class="l">indice momentum (z)<br>&lt; −2 séries · &gt; +2 rebond</div></div>
+   </div>
+   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <div>${bar('Après une victoire',mo.afterW,mo.expW,mo.tr.WW+mo.tr.WL)}${bar('Après une défaite',mo.afterL,mo.expL,mo.tr.LW+mo.tr.LL)}
+      ${bar('Après 2 victoires',mo.after2W,mo.exp2W,mo.t2.WWW+mo.t2.WWL)}${bar('Après 2 défaites',mo.after2L,mo.exp2L,mo.t2.LLW+mo.t2.LLL)}
+      <div class="note">% de victoires au match suivant, même journée de round robin · trait blanc = attendu si l'ordre des matchs de la journée était aléatoire · écart en points</div></div>
+    <div class="verdict" style="border-color:${v.c}"><div class="vt" style="color:${v.c}">${v.t}</div><p>${v.d}</p></div>
+   </div>
+   ${mo.timed>=30?`<h2 style="margin-top:22px;font-size:17px">Selon l'heure <small>${mo.timed} matchs horodatés par le fil live · trait blanc = sa moyenne (${pct(mo.base)})</small></h2>
+   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <div>${mo.tod.map(b=>tbar(b,mo.base)).join('')}${tbar(mo.first,mo.base)}</div>
+    <div><div class="note" style="margin:0 0 8px">Temps écoulé depuis la fin de son match précédent (même journée)</div>${mo.gap.map(b=>tbar(b,mo.base)).join('')}</div>
+   </div>`:''}
+   ${mo.n>=30?(()=>{const ok=mo.dow.filter(b=>b.c>=15),best=ok.length?ok.reduce((a,b)=>b.p>a.p?b:a):null,worst=ok.length?ok.reduce((a,b)=>b.p<a.p?b:a):null;
+     return`<h2 style="margin-top:22px;font-size:17px">Selon le jour de la semaine <small>${best&&worst&&best!==worst?`son jour : <b style="color:var(--yel)">${best.n.toLowerCase()}</b> (${pct(best.p)}) · son jour sans : <b style="color:var(--loss)">${worst.n.toLowerCase()}</b> (${pct(worst.p)})`:''}</small></h2>
+     <div class="dowg">${mo.dow.map(b=>`<div class="dow${b===best?' best':''}${b===worst?' worst':''}"><div class="dn">${b.n.slice(0,3)}</div><div class="dv">${b.c>=8?Math.round(b.p)+'%':'–'}</div><div class="dbar"><i style="height:${b.c>=8?b.p:0}%"></i><em style="bottom:${mo.base}%"></em></div><div class="dc">${b.c} m.</div></div>`).join('')}</div>`})():''}</div>`;
+}
+
+/* ===================== image partageable ===================== */
+const loadImg=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
+async function shareCard(si,A,extra){
+  const s=SK[si],W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  await document.fonts.load('80px Anton');await document.fonts.load('600 20px Inter');
+  // fond
+  g.fillStyle='#050a18';g.fillRect(0,0,W,H);
+  const glow=(x,y,r,col)=>{const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,col);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,W,H)};
+  glow(150,200,760,'rgba(47,107,255,.35)');glow(980,1180,700,'rgba(255,198,26,.20)');glow(620,80,400,'rgba(91,77,255,.18)');
+  for(let k=0;k<70;k++){const y2=Math.random()<.5;g.fillStyle=y2?'rgba(255,205,60,.55)':'rgba(110,155,255,.55)';g.beginPath();g.arc(Math.random()*W,Math.random()*H,Math.random()*2+.6,0,6.3);g.fill()}
+  // en-tête
+  g.fillStyle='#2f6bff';g.beginPath();g.moveTo(80,60);g.lineTo(80,110);g.lineTo(56,110);g.fill();
+  g.fillStyle='#ffc61a';g.beginPath();g.moveTo(85,68);g.lineTo(85,110);g.lineTo(106,110);g.fill();
+  g.font='34px Anton';g.fillStyle='#fff';g.textBaseline='alphabetic';g.fillText('MATCH RACE',122,106);
+  let x0=122+g.measureText('MATCH RACE ').width;g.fillStyle='#ffc61a';g.fillText('STATS',x0,106);
+  // photo / initiales
+  const px=70,py=160,pw=360,ph=450;
+  const photo=D.photos[si]?await loadImg('photos/'+D.photos[si]):null;
+  if(photo){g.drawImage(photo,px,py,pw,ph)}else{const gr=g.createLinearGradient(px,py,px+pw,py+ph);gr.addColorStop(0,'#2f6bff');gr.addColorStop(.55,'#5b4dff');gr.addColorStop(1,'#ffc61a');g.fillStyle=gr;g.fillRect(px,py,pw,ph);
+    g.fillStyle='#fff';g.font='170px Anton';g.textAlign='center';g.fillText(initials(s.name),px+pw/2,py+ph/2+60);g.textAlign='left'}
+  g.strokeStyle='rgba(255,255,255,.15)';g.lineWidth=2;g.strokeRect(px,py,pw,ph);
+  const fl=s.country&&D.countries[s.country]?.[0]?await loadImg('flags/'+s.country+'.svg'):null;
+  if(fl)g.drawImage(fl,px+pw-74,py+ph-40,96,64);
+  // nom
+  const nx=470;g.fillStyle='#8b97b8';g.font='600 22px Inter';g.fillText(((CN(s.country)||'')+' · '+A.y0+'–'+A.y1).toUpperCase(),nx,200);
+  g.fillStyle='#fff';let fs=96;const words=s.name.toUpperCase().split(' ');
+  const lines=[];let cur='';g.font=fs+'px Anton';for(const w of words){const t=cur?cur+' '+w:w;if(g.measureText(t).width>540&&cur){lines.push(cur);cur=w}else cur=t}lines.push(cur);
+  while(lines.some(l=>g.measureText(l).width>540)&&fs>50){fs-=6;g.font=fs+'px Anton'}
+  lines.forEach((l,k)=>g.fillText(l,nx,200+fs*(k+1)*0.98));
+  let yy=200+fs*lines.length*0.98+46;
+  if(extra.ws){g.font='600 24px Inter';g.fillStyle='#8b97b8';g.fillText('CLASSEMENT MONDIAL',nx,yy);g.font='54px Anton';g.fillStyle='#ffc61a';g.fillText(extra.ws,nx,yy+60);yy+=80}
+  // donut
+  const cx=740,cy=yy+150>520?yy+150:520,R=125,tot=A.bw+A.yw+A.l;
+  g.lineWidth=36;g.strokeStyle='rgba(255,255,255,.06)';g.beginPath();g.arc(cx,cy,R,0,6.283);g.stroke();
+  let a0=-Math.PI/2;for(const[v,col]of[[A.bw,'#2f6bff'],[A.yw,'#ffc61a'],[A.l,'rgba(255,255,255,.16)']]){if(!v)continue;const a1=a0+6.283*v/tot;g.strokeStyle=col;g.beginPath();g.arc(cx,cy,R,a0+.012,a1-.012);g.stroke();a0=a1}
+  g.textAlign='center';g.fillStyle='#fff';g.font='62px Anton';g.fillText(pct(A.pct),cx,cy+18);g.font='700 17px Inter';g.fillStyle='#8b97b8';g.fillText('VICTOIRES',cx,cy+50);g.textAlign='left';
+  // tuiles
+  const tiles=[[A.m.toLocaleString('fr'),'matchs','#fff'],[A.w.toLocaleString('fr'),'victoires','#3ddc84'],[A.l.toLocaleString('fr'),'défaites','#ff5c6c'],
+    [pct(A.ypct),'en jaune','#ffc61a'],[pct(A.bpct),'en bleu','#6f9bff'],[String(extra.ti),'titres','#ffc61a'],
+    [String(extra.po),'podiums','#fff'],[extra.lw+' V','série sur 1 jour','#3ddc84'],[pct(A.kpct),'phases finales','#fff']];
+  const ty=Math.max(cy+R+70,700),tw=300,th=150,gx=70,gap=15;
+  tiles.forEach(([v,l,col],k)=>{const x=gx+(k%3)*(tw+gap),y=ty+Math.floor(k/3)*(th+gap);
+    g.fillStyle='rgba(255,255,255,.05)';g.fillRect(x,y,tw,th);g.strokeStyle='rgba(255,255,255,.09)';g.lineWidth=2;g.strokeRect(x,y,tw,th);
+    g.fillStyle=col;g.font='64px Anton';g.fillText(v,x+24,y+86);g.fillStyle='#8b97b8';g.font='700 18px Inter';g.fillText(l.toUpperCase(),x+24,y+122)});
+  // pied
+  g.fillStyle='#8b97b8';g.font='500 19px Inter';
+  g.fillText('Données matchracingresults.com · World Sailing · '+new Date().toISOString().slice(0,10),70,H-50);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  const file=new File([blob],`matchrace-${s.key.replace(/\s+/g,'-')}.png`,{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({files:[file],title:s.name});return}catch(e){}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();toast('Image générée ✓');
+}
+/* ===================== routing / partage ===================== */
+function applyFilters(q){const ys=yearsAll();$('#y0').value=q.get('y0')||ys[0];$('#y1').value=q.get('y1')||ys.at(-1);$('#women').value=q.get('women')??-1;$('#youth').value=q.get('youth')??-1;$('#grade').value=q.get('grade')??-1}
+function route(){
+  const {parts,q}=parseHash();applyFilters(q);
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===(parts[0]==='skipper'?'':parts[0]==='country'?'countries':(parts[0]||''))));
+  const r=parts[0];
+  if(r==='skipper'){if(D.ranks)viewSkipper(parts[1]);else fetch('ranks.json',{cache:'no-cache'}).then(x=>x.json()).then(x=>{D.ranks=x;viewSkipper(parts[1])}).catch(()=>{D.ranks={};viewSkipper(parts[1])})}else if(r==='h2h')viewH2H(parts[1],parts[2]);
+  else if(r==='colours')viewColours();else if(r==='countries')viewCountries();else if(r==='country')viewCountry(parts[1]);else if(r==='events')viewEvents();else viewBoard();
+  scrollTo({top:0,behavior:'instant'});
+}
+function onFilter(){const {parts}=parseHash();location.hash='#/'+parts.map(encodeURIComponent).join('/')+fq()}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)}
+$('#share').onclick=async()=>{
+  const url=location.href,title=document.title;
+  if(navigator.share&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({title,url});return}catch(e){}}
+  try{await navigator.clipboard.writeText(url);toast('Lien copié ✓')}catch(e){prompt('Lien à partager :',url)}
+};
+(async()=>{
+  await load();
+  const ys=yearsAll();$('#y0').innerHTML=$('#y1').innerHTML=ys.map(y=>`<option>${y}</option>`).join('');
+  $('#gen').textContent='mis à jour le '+D.generated;
+  ['y0','y1','women','youth','grade'].forEach(id=>$('#'+id).onchange=onFilter);
+  $('#ftog').onclick=()=>{const o=$('#tools').classList.toggle('open');$('#ftog').setAttribute('aria-expanded',o)};
+  addEventListener('hashchange',route);route();
+})();
+</script>
+</body>
+</html>

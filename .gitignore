@@ -1,0 +1,8 @@
+# caches de scraping et base locale (régénérables : fetch.py, ws_fetch.py, ws_history.py, parse.py)
+raw/
+ws/
+matchrace.db
+__pycache__/
+server.log
+# GitHub Pages compresse lui-même ; les .gz ne servent qu'à serve.py en local
+site/*.gz
