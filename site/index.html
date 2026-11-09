@@ -239,6 +239,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;padding-top:20px}
 .dow.best{border-color:rgba(255,198,26,.6);box-shadow:0 0 24px rgba(255,198,26,.15)}.dow.best .dv{color:var(--yel)}
 .dow.worst{border-color:rgba(255,92,108,.5)}.dow.worst .dv{color:var(--loss)}
 @media (max-width:720px){.dowg{grid-template-columns:repeat(4,1fr)}}
+.grid>*{min-width:0}
 .search{position:relative;z-index:40}.strip,.vs{position:relative;z-index:30}
 .sugg div{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:14px}
 .sugg div.on{background:rgba(47,107,255,.25)}
@@ -284,6 +285,19 @@ footer{color:var(--mut);font-size:12px;text-align:center;padding-top:20px}
   .wsrank{font-size:11px}.wsrank b{font-size:18px}
   footer{font-size:11px;padding:16px 8px}
   .card .bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.card .bar .btn,.card .bar select,.card .bar input{flex:none}
+  /* tableaux : tout doit tenir dans la largeur, pas de scroll horizontal */
+  th,td{white-space:normal;padding:7px 4px}
+  th{font-size:9.5px;letter-spacing:.6px}
+  table{font-size:12px}
+  td.l a[target=_blank]{min-width:0;max-width:none;display:inline}
+  .chip{font-size:0;gap:0}.chip::before{width:12px;height:12px}
+  .flg{width:16px;height:11px;margin-left:4px}
+  .scroll{margin:0;padding:0}
+  .big{font-size:15px}
+  .meter{display:none}
+  td.l{overflow-wrap:anywhere}
+  .card{padding:12px 8px}
+  th,td{padding:7px 3px}
 }
 /* angles vifs partout (sauf pastilles rondes) */
 *,*::before,*::after{border-radius:0!important}
@@ -570,15 +584,15 @@ function viewSkipper(key){
       {id:'y',n:'jaune',c:'#ffc61a',v:r=>r.ypct,t:r=>r.yw+'/'+(r.yw+r.yl)},
       {id:'b',n:'bleu',c:'#2f6bff',v:r=>r.bpct,t:r=>r.bw+'/'+(r.bw+r.bl)}],{ref:50})}
       <div class="note">${yrs.map(r=>`${r.year} <b style="color:#fff">${r.m}</b>`).join(' · ')}</div></div>
-    <div class="card"><h2>Par phase</h2><table><thead><tr><th>Phase</th><th>Matchs</th><th>V–D</th><th>% V</th><th>Jaune</th><th>Bleu</th></tr></thead><tbody>
-      ${Object.entries(byS).map(([k,a])=>({k,...finalize(a)})).sort((a,b)=>b.m-a.m).map(r=>`<tr><td>${STAGE[r.k]||r.k}</td><td>${r.m}</td><td><span class="W">${r.w}</span>–<span class="L">${r.l}</span></td><td><b>${pct(r.pct)}</b>${meter(r.pct)}</td>
+    <div class="card"><h2>Par phase</h2><table><thead><tr><th>Phase</th><th class="hide-m">Matchs</th><th>V–D</th><th>% V</th><th>Jaune</th><th>Bleu</th></tr></thead><tbody>
+      ${Object.entries(byS).map(([k,a])=>({k,...finalize(a)})).sort((a,b)=>b.m-a.m).map(r=>`<tr><td>${STAGE[r.k]||r.k}</td><td class="hide-m">${r.m}</td><td><span class="W">${r.w}</span>–<span class="L">${r.l}</span></td><td><b>${pct(r.pct)}</b>${meter(r.pct)}</td>
       <td style="color:var(--yel)">${r.yw}/${r.ym}</td><td style="color:var(--blu2)">${r.bw}/${r.bm}</td></tr>`).join('')}</tbody></table></div>
   </div>
   ${rk_.length?`<div class="card fade"><h2>Classement mondial World Sailing <small>${rk_.length} classements mensuels</small></h2>${rankChart(rk_)}${['o','w'].map(t=>rankGrid(rk_,t)).join('')}</div>`:''}
   <div class="grid fade">
     <div class="card"><h2>Face-à-face <small>${Object.keys(H).length} adversaires</small></h2><div class="scroll" style="max-height:460px"><table id="th"><thead><tr><th>Adversaire</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th class="hide-m">en jaune</th><th></th></tr></thead><tbody>
       ${Object.entries(H).map(([o,a])=>({o:+o,...finalize(a)})).sort((a,b)=>b.m-a.m).map(r=>`<tr><td data-v="${esc(SK[r.o].name)}">${skl(r.o)}</td><td>${r.m}</td><td class="W">${r.w}</td><td class="L">${r.l}</td><td data-v="${r.pct??-1}"><b>${pct(r.pct)}</b></td><td class="hide-m" style="color:var(--yel)">${r.yw}/${r.ym}</td>
-      <td><a href="${link('/h2h/'+encodeURIComponent(key)+'/'+encodeURIComponent(SK[r.o].key))}">duel →</a></td></tr>`).join('')}</tbody></table></div></div>
+      <td><a href="${link('/h2h/'+encodeURIComponent(key)+'/'+encodeURIComponent(SK[r.o].key))}" title="Face-à-face détaillé">⇄</a></td></tr>`).join('')}</tbody></table></div></div>
     <div class="card"><h2>Palmarès <small>${Object.keys(E).length} events</small></h2><div class="scroll" style="max-height:460px"><table id="te"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th class="hide-m">Bateau</th><th>Class.</th><th>V–D</th></tr></thead><tbody>
       ${Object.entries(E).map(([e,a])=>({e:+e,...a})).sort((a,b)=>EV[b.e].date?.localeCompare(EV[a.e].date||'')||EV[b.e].year-EV[a.e].year).map(r=>{const ev=EV[r.e],k=rk[r.e];return`<tr><td class="l"><a href="${ev.url}" target="_blank" rel="noopener">${esc(ev.title)}</a></td><td data-v="${ev.g}">${gb(ev.grade)}</td><td class="mut">${ev.date||ev.year}</td><td class="hide-m mut">${esc(ev.boat||'')}</td>
       <td data-v="${k??99}">${k?`<span class="big" style="color:${k===1?'var(--yel)':k<=3?'#fff':'var(--ink)'}">${k}</span><span class="mut">/${nEnt[r.e]}</span>`:'–'}</td><td><span class="W">${r.w}</span>–<span class="L">${r.l}</span></td></tr>`}).join('')}</tbody></table></div></div>
@@ -641,9 +655,9 @@ function viewEvents(){
   for(const r of D.R){n[r.e]=(n[r.e]||0)+1;if(r.r===1)win[r.e]=r.s}
   const evs=EV.filter(e=>evOK(e.i,f)&&cnt[e.i]).sort((a,b)=>(b.date||b.year+'-12-31').localeCompare(a.date||a.year+'-12-31'));
   M.innerHTML=`<section class="hero fade"><div class="kicker">Calendrier</div><h1>${evs.length} <span class="b">events</span></h1></section>
-  <div class="card fade"><div class="bar"><input id="eq" placeholder="Filtrer (nom, bateau…)" style="width:260px"></div><div class="scroll" style="max-height:780px"><table id="tv"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th class="hide-m">Lieu</th><th class="hide-m">Bateau</th><th>Équipes</th><th class="hide-m">Matchs</th><th>Vainqueur</th></tr></thead><tbody>
+  <div class="card fade"><div class="bar"><input id="eq" placeholder="Filtrer (nom, bateau…)" style="width:260px"></div><div class="scroll" style="max-height:780px"><table id="tv"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th class="hide-m">Lieu</th><th class="hide-m">Bateau</th><th class="hide-m">Équipes</th><th class="hide-m">Matchs</th><th>Vainqueur</th></tr></thead><tbody>
   ${evs.map(e=>`<tr data-s="${esc((e.title+' '+(e.boat||'')+' '+(e.venue||'')+' '+CN(e.vc)).toLowerCase())}"><td class="l"><a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a> ${e.women?'<span class="pill">women</span>':''} ${e.youth?'<span class="pill">youth</span>':''}</td>
-  <td data-v="${e.g}">${gb(e.grade)}</td><td class="mut">${e.date||e.year}</td><td class="hide-m l mut">${esc(e.venue||'')}${cc(e.vc)}</td><td class="hide-m mut">${esc(e.boat||'')}</td><td>${n[e.i]||'–'}</td><td class="hide-m">${cnt[e.i]||0}</td><td class="l">${win[e.i]!=null?skl(win[e.i]):'–'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  <td data-v="${e.g}">${gb(e.grade)}</td><td class="mut">${e.date||e.year}</td><td class="hide-m l mut">${esc(e.venue||'')}${cc(e.vc)}</td><td class="hide-m mut">${esc(e.boat||'')}</td><td class="hide-m">${n[e.i]||'–'}</td><td class="hide-m">${cnt[e.i]||0}</td><td class="l">${win[e.i]!=null?skl(win[e.i]):'–'}</td></tr>`).join('')}</tbody></table></div></div>`;
   sortable($('#tv'));
   $('#eq').oninput=e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('#tv tbody tr').forEach(r=>r.hidden=!r.dataset.s.includes(q))};
 }
@@ -686,9 +700,9 @@ async function viewCountries(){
   <div class="card fade"><div class="bar">${Object.entries(METRICS).map(([k,v])=>`<button class="btn ${k===mk?'':'ghost'}" data-m="${k}">${v.n}</button>`).join('')}</div>
     <svg id="map" viewBox="0 0 1000 520"></svg>
     <div class="scale"><span>${MT.f(MT.inv?hi:lo)}</span><i></i><span>${MT.f(MT.inv?lo:hi)}</span><span style="margin-left:auto">${esc(MT.n)}${MT.ws?` · classement Open World Sailing du ${D.rank_dates.open} (tous les classés)`:''}</span></div></div>
-  <div class="card fade"><h2>Toutes les nations</h2><div class="scroll"><table id="tc"><thead><tr><th>Pays</th><th>Skippers</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th>% jaune</th><th>% bleu</th><th>Titres</th><th class="hide-m">Podiums</th><th class="hide-m">Events org.</th><th class="hide-m">Classés WS</th><th class="hide-m">Rang WS moyen</th><th class="hide-m">Meilleur skipper</th></tr></thead><tbody>
-  ${rows.filter(r=>!r.stub).sort((a,b)=>b.m-a.m).map(r=>`<tr><td class="l" data-v="${esc(CN(r.c))}">${cc(r.c)} <a class="nm" href="${link('/country/'+r.c)}" style="margin-left:6px">${esc(CN(r.c))}</a></td><td>${r.nsk}</td><td class="big">${r.m}</td><td class="W">${r.w}</td><td class="L">${r.l}</td>
-   <td data-v="${r.pct??-1}"><b>${pct(r.pct)}</b></td><td style="color:var(--yel)" data-v="${r.ypct??-1}">${pct(r.ypct)}</td><td style="color:var(--blu2)" data-v="${r.bpct??-1}">${pct(r.bpct)}</td>
+  <div class="card fade"><h2>Toutes les nations</h2><div class="scroll"><table id="tc"><thead><tr><th>Pays</th><th class="hide-m">Skippers</th><th>Matchs</th><th class="hide-m">V</th><th class="hide-m">D</th><th>% V</th><th>% jaune</th><th class="hide-m">% bleu</th><th>Titres</th><th class="hide-m">Podiums</th><th class="hide-m">Events org.</th><th class="hide-m">Classés WS</th><th class="hide-m">Rang WS moyen</th><th class="hide-m">Meilleur skipper</th></tr></thead><tbody>
+  ${rows.filter(r=>!r.stub).sort((a,b)=>b.m-a.m).map(r=>`<tr><td class="l" data-v="${esc(CN(r.c))}">${cc(r.c)} <a class="nm" href="${link('/country/'+r.c)}" style="margin-left:6px">${esc(CN(r.c))}</a></td><td class="hide-m">${r.nsk}</td><td class="big">${r.m}</td><td class="W hide-m">${r.w}</td><td class="L hide-m">${r.l}</td>
+   <td data-v="${r.pct??-1}"><b>${pct(r.pct)}</b></td><td style="color:var(--yel)" data-v="${r.ypct??-1}">${pct(r.ypct)}</td><td class="hide-m" style="color:var(--blu2)" data-v="${r.bpct??-1}">${pct(r.bpct)}</td>
    <td class="big" style="color:${r.ti?'var(--yel)':'var(--mut)'}">${r.ti}</td><td class="hide-m">${r.po}</td><td class="hide-m">${r.nhost}</td><td class="hide-m">${D.ws_country[r.c]?.o?.[0]??'–'}</td><td class="hide-m" data-v="${D.ws_country[r.c]?.o?.[1]??9999}">${D.ws_country[r.c]?.o?`#${Math.round(D.ws_country[r.c].o[1])} <span class="mut">(meilleur #${D.ws_country[r.c].o[2]})</span>`:'–'}</td><td class="hide-m l">${r.best!=null?skl(r.best):''}</td></tr>`).join('')}</tbody></table></div></div>`;
   sortable($('#tc'));
   M.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const p=new URLSearchParams(fq().slice(1));p.set('m',b.dataset.m);location.hash='#/countries?'+p});
@@ -724,8 +738,8 @@ function viewCountry(c){
   <div class="tiles fade"><div class="tile"><div class="v">${r.m.toLocaleString('fr')}</div><div class="l">matchs</div></div><div class="tile"><div class="v">${pct(r.pct)}</div><div class="l">% victoires</div></div>
     <div class="tile"><div class="v" style="color:var(--yel)">${r.ti}</div><div class="l">titres · ${r.po} podiums</div></div><div class="tile"><div class="v">${pct(r.kpct)}</div><div class="l">phases finales</div></div>
     <div class="tile"><div class="v">${r.nhost}</div><div class="l">events organisés</div></div></div>
-  <div class="grid fade"><div class="card"><h2>Skippers <small>${sks.length}</small></h2><div class="scroll" style="max-height:560px"><table id="ts"><thead><tr><th>Skipper</th><th>Matchs</th><th>V</th><th>D</th><th>% V</th><th>Titres</th><th class="hide-m">Années</th></tr></thead><tbody>
-    ${sks.map(x=>`<tr><td class="l" data-v="${esc(SK[x.i].name)}">${skl(x.i)}</td><td class="big">${x.m}</td><td class="W">${x.w}</td><td class="L">${x.l}</td><td data-v="${x.pct??-1}"><b>${pct(x.pct)}</b></td><td>${x.ti}</td><td class="hide-m mut">${x.y0}–${String(x.y1).slice(2)}</td></tr>`).join('')}</tbody></table></div></div>
+  <div class="grid fade"><div class="card"><h2>Skippers <small>${sks.length}</small></h2><div class="scroll" style="max-height:560px"><table id="ts"><thead><tr><th>Skipper</th><th>Matchs</th><th class="hide-m">V</th><th class="hide-m">D</th><th>% V</th><th>Titres</th><th class="hide-m">Années</th></tr></thead><tbody>
+    ${sks.map(x=>`<tr><td class="l" data-v="${esc(SK[x.i].name)}">${skl(x.i)}</td><td class="big">${x.m}</td><td class="W hide-m">${x.w}</td><td class="L hide-m">${x.l}</td><td data-v="${x.pct??-1}"><b>${pct(x.pct)}</b></td><td>${x.ti}</td><td class="hide-m mut">${x.y0}–${String(x.y1).slice(2)}</td></tr>`).join('')}</tbody></table></div></div>
    <div class="card"><h2>Events organisés <small>${hosted.length} · lieu World Sailing</small></h2><div class="scroll" style="max-height:560px"><table id="th2"><thead><tr><th>Event</th><th>Grade</th><th>Date</th><th>Vainqueur</th></tr></thead><tbody>
     ${hosted.map(e=>`<tr><td class="l"><a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a><div class="mut" style="font-size:11px">${esc(e.venue||'')}</div></td><td data-v="${e.g}">${gb(e.grade)}</td><td class="mut">${e.date||e.year}</td><td class="l">${win[e.i]!=null?skl(win[e.i]):'–'}</td></tr>`).join('')||'<tr><td class="mut l" colspan="4">Aucun event relié à World Sailing pour ce pays.</td></tr>'}</tbody></table></div></div></div>`;
   ['#ts','#th2'].forEach(x=>sortable($(x)));
