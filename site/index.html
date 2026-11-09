@@ -324,6 +324,12 @@ footer{color:var(--mut);font-size:12px;text-align:center;padding-top:20px}
 </div>
 <div class="toast" id="toast"></div>
 <script>
+/* ===================== mise à jour : GitHub Pages met la page en cache 10 min ===================== */
+// BUILD est remplacé par le n° de commit au déploiement (workflow) ; si version.json (lu sans cache) diffère,
+// on recharge une fois avec ?v=<nouvelle version> (nouvelle URL = pas de cache), en gardant la vue (#...).
+const BUILD='__BUILD__';
+if(!BUILD.startsWith('__'))fetch('version.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
+  if(j&&j.v&&j.v!==BUILD&&new URLSearchParams(location.search).get('v')!==j.v)location.replace(location.pathname+'?v='+j.v+location.hash)}).catch(()=>{});
 /* ===================== fond animé : halos + particules ===================== */
 (()=>{
   const c=document.getElementById('fx'),x=c.getContext('2d'),R=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -361,7 +367,7 @@ const STAGE={round_robin:'Round robin',quarter_final:'Quarts',semi_final:'Demies
 let D, SK, EV, KEY2I;   // données brutes
 
 async function load(){
-  D=await fetch('data.json',{cache:'no-cache'}).then(r=>r.json());
+  D=await fetch('data.json?v='+BUILD,{cache:'no-cache'}).then(r=>r.json());
   SK=D.skippers.map(([key,name,country,ws],i)=>({i,key,name,country,ws}));
   KEY2I=Object.fromEntries(SK.map(s=>[s.key,s.i]));
   EV=D.events.map(([year,title,url,date,boat,women,youth,grade,venue,vc,wst],i)=>({i,year,title,url,date,boat,women,youth,grade,venue,vc,wst,g:grade==null?99:grade==='W'?0:+grade}));
@@ -890,7 +896,7 @@ function route(){
   const {parts,q}=parseHash();applyFilters(q);
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===(parts[0]==='skipper'?'':parts[0]==='country'?'countries':(parts[0]||''))));
   const r=parts[0];
-  if(r==='skipper'){if(D.ranks)viewSkipper(parts[1]);else fetch('ranks.json',{cache:'no-cache'}).then(x=>x.json()).then(x=>{D.ranks=x;viewSkipper(parts[1])}).catch(()=>{D.ranks={};viewSkipper(parts[1])})}else if(r==='h2h')viewH2H(parts[1],parts[2]);
+  if(r==='skipper'){if(D.ranks)viewSkipper(parts[1]);else fetch('ranks.json?v='+BUILD,{cache:'no-cache'}).then(x=>x.json()).then(x=>{D.ranks=x;viewSkipper(parts[1])}).catch(()=>{D.ranks={};viewSkipper(parts[1])})}else if(r==='h2h')viewH2H(parts[1],parts[2]);
   else if(r==='colours')viewColours();else if(r==='countries')viewCountries();else if(r==='country')viewCountry(parts[1]);else if(r==='events')viewEvents();else viewBoard();
   scrollTo({top:0,behavior:'instant'});
 }

@@ -19,6 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Numéro de version (contourne le cache de 10 min de GitHub Pages)
+        run: |
+          V=${GITHUB_SHA::7}
+          sed -i "s/__BUILD__/$V/" site/index.html
+          echo "{\"v\":\"$V\"}" > site/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
