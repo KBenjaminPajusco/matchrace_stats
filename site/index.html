@@ -9,6 +9,8 @@
 <meta property="og:description" content="46 000+ matchs, 1 600 skippers : victoires, jaune vs bleu, face-à-face.">
 <meta name="theme-color" content="#050a18">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 3 L16 27 L5 27 Z' fill='%232f6bff'/><path d='M18 7 L18 27 L28 27 Z' fill='%23ffc61a'/></svg>">
+<!-- Statistiques de visite sans cookie (GoatCounter, compte du portfolio) : chemins préfixés mr_stat/ -->
+<script data-goatcounter="https://bpajusco.goatcounter.com/count" data-goatcounter-settings='{"no_onload":true}' async src="//gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="vendor/d3-array.min.js" defer></script><script src="vendor/d3-geo.min.js" defer></script><script src="vendor/topojson-client.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,6 +20,7 @@
   --ink:#eef2ff;--mut:#8b97b8;--yel:#ffc61a;--yel2:#ffde6b;--blu:#2f6bff;--blu2:#6f9bff;--win:#3ddc84;--loss:#ff5c6c;
   --disp:"Anton",Impact,"Arial Narrow Bold",sans-serif;--body:"Inter",system-ui,sans-serif}
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);overflow-x:hidden}
 #fx{position:fixed;inset:0;z-index:0;pointer-events:none}
 .wrap{position:relative;z-index:1;max-width:1840px;margin:0 auto;padding:0 28px 60px}
@@ -609,7 +612,7 @@ function viewSkipper(key){
     <td class="hide-m mut">${(side==='p'?m.pp:m.ps)?'lui':''}${(side==='p'?m.pp:m.ps)&&(side==='p'?m.ps:m.pp)?' + ':''}${(side==='p'?m.ps:m.pp)?'adv.':''}</td></tr>`).join('')}</tbody></table></div></div>`;
   ['#th','#te','#tm'].forEach(x=>sortable($(x)));
   const wsc=['open','women'].map(t=>cur(t)).filter(Boolean).sort((a,b)=>a[2]-b[2])[0];
-  $('#shot').onclick=async e=>{e.target.disabled=true;e.target.textContent='Génération…';try{await shareCard(si,A,{ti,po,lw:mo.lw.len,ws:wsc?`#${wsc[2]} ${wsc[0]==='o'?'Open':'Women'}`:''})}finally{e.target.disabled=false;e.target.textContent="Générer l'image"}};
+  $('#shot').onclick=async e=>{gc('evt/image','image partageable · '+s.name,true);e.target.disabled=true;e.target.textContent='Génération…';try{await shareCard(si,A,{ti,po,lw:mo.lw.len,ws:wsc?`#${wsc[2]} ${wsc[0]==='o'?'Open':'Women'}`:''})}finally{e.target.disabled=false;e.target.textContent="Générer l'image"}};
 }
 
 function viewH2H(ka,kb){
@@ -890,10 +893,26 @@ async function shareCard(si,A,extra){
   if(navigator.canShare&&navigator.canShare({files:[file]})&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({files:[file],title:s.name});return}catch(e){}}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();toast('Image générée ✓');
 }
+/* ===================== stats de visite (GoatCounter) ===================== */
+// routes en #… invisibles pour GoatCounter : on compte chaque vue à la main, préfixée mr_stat/
+let gcLast='';
+function gc(path,title,event){
+  if(!event){if(path===gcLast)return;gcLast=path}
+  const send=()=>{try{window.goatcounter.count({path:'mr_stat/'+path,title:'MR Stats · '+title,event:!!event})}catch(e){}};
+  if(window.goatcounter?.count)return send();
+  let n=0;const t=setInterval(()=>{if(window.goatcounter?.count){clearInterval(t);send()}else if(++n>40)clearInterval(t)},250);
+}
+function gcView(parts){
+  const r=parts[0]||'',slug=x=>String(x||'').replace(/\s+/g,'-');
+  if(r==='skipper'){const i=KEY2I[parts[1]];gc('skipper/'+slug(parts[1]),'skipper · '+(i!=null?SK[i].name:parts[1]))}
+  else if(r==='country')gc('country/'+parts[1],'pays · '+CN(parts[1]));
+  else if(r==='h2h')gc(parts[1]&&parts[2]?'h2h/'+slug(parts[1])+'/'+slug(parts[2]):'h2h','face-à-face');
+  else gc(r?r+'/':'',{'':'classement',colours:'jaune vs bleu',countries:'pays',events:'events'}[r]||r);
+}
 /* ===================== routing / partage ===================== */
 function applyFilters(q){const ys=yearsAll();$('#y0').value=q.get('y0')||ys[0];$('#y1').value=q.get('y1')||ys.at(-1);$('#women').value=q.get('women')??-1;$('#youth').value=q.get('youth')??-1;$('#grade').value=q.get('grade')??-1}
 function route(){
-  const {parts,q}=parseHash();applyFilters(q);
+  const {parts,q}=parseHash();applyFilters(q);gcView(parts);
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===(parts[0]==='skipper'?'':parts[0]==='country'?'countries':(parts[0]||''))));
   const r=parts[0];
   if(r==='skipper'){if(D.ranks)viewSkipper(parts[1]);else fetch('ranks.json?v='+BUILD,{cache:'no-cache'}).then(x=>x.json()).then(x=>{D.ranks=x;viewSkipper(parts[1])}).catch(()=>{D.ranks={};viewSkipper(parts[1])})}else if(r==='h2h')viewH2H(parts[1],parts[2]);
@@ -902,7 +921,7 @@ function route(){
 }
 function onFilter(){const {parts}=parseHash();location.hash='#/'+parts.map(encodeURIComponent).join('/')+fq()}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)}
-$('#share').onclick=async()=>{
+$('#share').onclick=async()=>{gc('evt/partager','partager',true);
   const url=location.href,title=document.title;
   if(navigator.share&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({title,url});return}catch(e){}}
   try{await navigator.clipboard.writeText(url);toast('Lien copié ✓')}catch(e){prompt('Lien à partager :',url)}
@@ -910,7 +929,7 @@ $('#share').onclick=async()=>{
 (async()=>{
   await load();
   const ys=yearsAll();$('#y0').innerHTML=$('#y1').innerHTML=ys.map(y=>`<option>${y}</option>`).join('');
-  $('#gen').textContent='mis à jour le '+D.generated;
+  $('#gen').textContent='mis à jour le '+D.generated+' · version '+(BUILD.startsWith('__')?'locale':BUILD);
   ['y0','y1','women','youth','grade'].forEach(id=>$('#'+id).onchange=onFilter);
   $('#ftog').onclick=()=>{const o=$('#tools').classList.toggle('open');$('#ftog').setAttribute('aria-expanded',o)};
   addEventListener('hashchange',route);route();
